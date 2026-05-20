@@ -1,0 +1,23 @@
+# Base de datos local para desarrollo: PostgreSQL 16 con extensión PostGIS.
+# Uso:  docker compose up -d
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: nareapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nareapp
+      POSTGRES_PASSWORD: nareapp
+      POSTGRES_DB: nareapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - nareapp-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nareapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  nareapp-db-data:
