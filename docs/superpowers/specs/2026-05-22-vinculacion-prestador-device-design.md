@@ -113,10 +113,11 @@ TTL acotado + rate limiting + `attemptCount` es seguro.
 
 ### Vencimiento
 
-TTL del código **configurable**, default **24 horas**, separado del TTL del QR
-(15 min). El código pasa por una llamada + instalación, que llevan tiempo.
-Sigue siendo de un solo uso. Se agrega la clave de configuración correspondiente
-en `configuration.ts`.
+El código y el QR son dos representaciones de la misma fila de token, así que
+comparten un único `expiresAt`. TTL **configurable**, default **24 horas** — el
+flujo pasa por una llamada + instalación, que llevan tiempo. La activación sigue
+siendo de un solo uso. Se reemplaza la clave `activation.tokenTtlMin` (15 min)
+por `activation.codeTtlHours` en `configuration.ts`.
 
 ### Seguridad del endpoint público
 
