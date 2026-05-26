@@ -184,6 +184,22 @@ Xcode → Signing & Capabilities).
 
   Hasta entonces, `FirebaseMessaging.getToken()` devuelve `null` y la app
   sigue operativa sin push.
-- **Mapa:** no se integra el SDK de Google Maps todavía. La pantalla de
-  mapa muestra una superficie de referencia y delega la navegación real a
-  Google Maps por deep link `geo:`.
+- **Google Maps:** `google_maps_flutter` embebido en la pantalla "Cómo
+  llegar". Muestra el marker del domicilio y, si tenemos permiso de
+  ubicación, la posición actual del prestador. La API key se inyecta en
+  build:
+
+  ```bash
+  # Android
+  flutter build apk \
+    -P MAPS_API_KEY=AIza...real... \
+    --dart-define=BACKEND_URL=...
+
+  # iOS (en macOS)
+  flutter build ios \
+    --dart-define=GOOGLE_MAPS_API_KEY=AIza...real...
+  ```
+
+  Sin API key, el mapa carga pero pinta la marca "For development
+  purposes only". El botón "Abrir Google Maps" sigue funcionando como
+  fallback con deep link `geo:` independientemente de la API key.
