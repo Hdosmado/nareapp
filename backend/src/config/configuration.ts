@@ -34,4 +34,20 @@ export default () => ({
      */
     privateKey: (process.env.FCM_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
   },
+  activation: {
+    /** Base del deep link / URL embebida en el QR de activación (secundario). */
+    urlBase: process.env.ACTIVATION_URL_BASE ?? 'https://app.empresa.com',
+    /** Vigencia del código y del QR de activación, en horas. */
+    codeTtlHours: parseInt(process.env.ACTIVATION_CODE_TTL_HOURS ?? '24', 10),
+    /** Intentos de reclamo permitidos por token antes de revocarlo. */
+    maxClaimAttempts: parseInt(
+      process.env.ACTIVATION_MAX_CLAIM_ATTEMPTS ?? '5',
+      10,
+    ),
+    /** Reclamos permitidos por IP en una ventana de 60s (rate limiting). */
+    claimRateLimit: parseInt(process.env.ACTIVATION_CLAIM_RATE_LIMIT ?? '30', 10),
+    /** URL de descarga de la app que se incluye en el mensaje de WhatsApp. */
+    appDownloadUrl:
+      process.env.APP_DOWNLOAD_URL ?? 'https://app.empresa.com/descargar',
+  },
 });

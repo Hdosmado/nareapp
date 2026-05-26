@@ -10,6 +10,7 @@ import { argentinaDayRangeUtc } from '../../common/timezone.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Provider } from '../providers/entities/provider.entity';
 import { ServiceAssignment } from '../services/entities/service-assignment.entity';
+import { PreServiceLocationEvent } from '../tracking/entities/pre-service-location-event.entity';
 import { AssignReplacementDto } from './dto/assign-replacement.dto';
 import { CoordinationActionDto } from './dto/coordination-action.dto';
 import { CoordinationAction } from './entities/coordination-action.entity';
@@ -26,6 +27,50 @@ export interface DashboardSummary {
   finalizados: number;
 }
 
+/** Punto geográfico del domicilio donde se presta el servicio. */
+interface AddressPoint {
+  latitude: number;
+  longitude: number;
+  calle: string;
+  ciudad: string;
+  provincia: string;
+}
+
+/** Última ubicación reportada por el prestador en la ventana pre-servicio. */
+interface LastLocationPoint {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  batteryLevel: number | null;
+  connectivityStatus: string;
+  timestampServer: Date;
+}
+
+/** Resultado del mapa operativo de un servicio asignado. */
+export interface LastLocationResult {
+  assignmentId: string;
+  address: AddressPoint | null;
+  lastLocation: LastLocationPoint | null;
+  distanceMeters: number | null;
+}
+
+/** Distancia en metros entre dos coordenadas (fórmula de Haversine). */
+function haversineMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const earthRadiusM = 6_371_000;
+  const toRad = (deg: number): number => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return earthRadiusM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 @Injectable()
 export class CoordinationService {
   constructor(
@@ -35,6 +80,8 @@ export class CoordinationService {
     private readonly actions: Repository<CoordinationAction>,
     @InjectRepository(Provider)
     private readonly providers: Repository<Provider>,
+    @InjectRepository(PreServiceLocationEvent)
+    private readonly locationEvents: Repository<PreServiceLocationEvent>,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -150,6 +197,57 @@ export class CoordinationService {
       replacement.id,
     );
     return replacement;
+  }
+
+  /**
+   * Mapa operativo: domicilio del servicio y última ubicación conocida del
+   * prestador en la ventana de tracking previa, con la distancia entre ambos.
+   */
+  async getLastLocation(assignmentId: string): Promise<LastLocationResult> {
+    const assignment = await this.loadAssignment(assignmentId, {
+      address: true,
+    });
+    const address = assignment.address;
+    const event = await this.locationEvents.findOne({
+      where: { assignment: { id: assignmentId } },
+      order: { timestampServer: 'DESC' },
+    });
+
+    const addressPoint: AddressPoint | null =
+      address && address.latitude != null && address.longitude != null
+        ? {
+            latitude: address.latitude,
+            longitude: address.longitude,
+            calle: address.calle,
+            ciudad: address.ciudad,
+            provincia: address.provincia,
+          }
+        : null;
+
+    const lastLocation: LastLocationPoint | null = event
+      ? {
+          latitude: event.latitude,
+          longitude: event.longitude,
+          accuracy: event.accuracy ?? null,
+          batteryLevel: event.batteryLevel ?? null,
+          connectivityStatus: event.connectivityStatus,
+          timestampServer: event.timestampServer,
+        }
+      : null;
+
+    const distanceMeters =
+      addressPoint && lastLocation
+        ? Math.round(
+            haversineMeters(
+              addressPoint.latitude,
+              addressPoint.longitude,
+              lastLocation.latitude,
+              lastLocation.longitude,
+            ),
+          )
+        : null;
+
+    return { assignmentId, address: addressPoint, lastLocation, distanceMeters };
   }
 
   private async loadAssignment(

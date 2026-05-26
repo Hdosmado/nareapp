@@ -39,4 +39,16 @@ export class ProviderDevice extends BaseEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   approvedAt: Date;
+
+  /** Momento en que el dispositivo quedó activo (activación por QR). */
+  @Column({ type: 'timestamptz', nullable: true })
+  activatedAt: Date;
+
+  /** Momento en que coordinación revocó o reemplazó el dispositivo. */
+  @Column({ type: 'timestamptz', nullable: true })
+  revokedAt: Date | null;
+
+  /** Última vez que el dispositivo se comunicó con el backend. */
+  @Column({ type: 'timestamptz', nullable: true })
+  lastSeenAt: Date;
 }

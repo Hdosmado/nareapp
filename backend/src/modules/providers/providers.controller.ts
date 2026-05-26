@@ -1,9 +1,19 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums';
 import { CreateProviderDto } from './dto/create-provider.dto';
+import { UpdateProviderDto } from './dto/update-provider.dto';
 import { ProvidersService } from './providers.service';
 
 /** ABM de prestadores desde el panel de coordinación. */
@@ -25,5 +35,15 @@ export class ProvidersController {
   @Get(':id')
   findOne(@Param() { id }: IdParamDto) {
     return this.providers.findOne(id);
+  }
+
+  @Patch(':id')
+  update(@Param() { id }: IdParamDto, @Body() dto: UpdateProviderDto) {
+    return this.providers.update(id, dto);
+  }
+
+  @Delete(':id')
+  remove(@Param() { id }: IdParamDto) {
+    return this.providers.remove(id);
   }
 }

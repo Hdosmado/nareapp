@@ -1,10 +1,20 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { UserRole } from '../../common/enums';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
+import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PatientsService } from './patients.service';
 
 /** ABM de personas a cuidar desde el panel de coordinación. */
@@ -31,5 +41,15 @@ export class PatientsController {
   @Post(':id/addresses')
   addAddress(@Param() { id }: IdParamDto, @Body() dto: CreateAddressDto) {
     return this.patients.addAddress(id, dto);
+  }
+
+  @Patch(':id')
+  update(@Param() { id }: IdParamDto, @Body() dto: UpdatePatientDto) {
+    return this.patients.update(id, dto);
+  }
+
+  @Delete(':id')
+  remove(@Param() { id }: IdParamDto) {
+    return this.patients.remove(id);
   }
 }

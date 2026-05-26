@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AlertSeverity, AlertStatus, AlertType } from '../../common/enums';
 import { User } from '../auth/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ServiceAssignment } from '../services/entities/service-assignment.entity';
+import { CreateAlertDto } from './dto/create-alert.dto';
+import { UpdateAlertDto } from './dto/update-alert.dto';
 import { OperationalAlert } from './entities/operational-alert.entity';
 
 /** Severidades que disparan push al prestador asignado. */
@@ -94,5 +97,65 @@ export class AlertsService {
     alert.resolvedAt = new Date();
     alert.assignedCoordinator = { id: coordinatorId } as User;
     return this.alerts.save(alert);
+  }
+
+  /** Crea una alerta operativa de forma manual desde el panel. */
+  async create(dto: CreateAlertDto): Promise<OperationalAlert> {
+    const alert = this.alerts.create({
+      assignment: { id: dto.assignmentId },
+      type: dto.type,
+      severity: dto.severity,
+      status: dto.status,
+    });
+    await this.alerts.save(alert);
+    await this.maybeNotify(dto.assignmentId, dto.type, dto.severity, alert.id);
+    return this.findOne(alert.id);
+  }
+
+  /** Lista paginada de alertas para el panel, ordenadas por fecha de alta. */
+  findAll(pagination: PaginationDto): Promise<OperationalAlert[]> {
+    const { page, limit } = pagination;
+    return this.alerts.find({
+      relations: { assignment: true, assignedCoordinator: true },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+  }
+
+  async findOne(id: string): Promise<OperationalAlert> {
+    const alert = await this.alerts.findOne({
+      where: { id },
+      relations: { assignment: true, assignedCoordinator: true },
+    });
+    if (!alert) {
+      throw new NotFoundException('Alerta no encontrada');
+    }
+    return alert;
+  }
+
+  /** Actualiza una alerta operativa. */
+  async update(id: string, dto: UpdateAlertDto): Promise<OperationalAlert> {
+    const alert = await this.alerts.findOne({ where: { id } });
+    if (!alert) {
+      throw new NotFoundException('Alerta no encontrada');
+    }
+    this.alerts.merge(alert, {
+      assignment: dto.assignmentId ? { id: dto.assignmentId } : undefined,
+      type: dto.type,
+      severity: dto.severity,
+      status: dto.status,
+    });
+    await this.alerts.save(alert);
+    return this.findOne(id);
+  }
+
+  /** Elimina físicamente una alerta operativa. */
+  async remove(id: string): Promise<void> {
+    const alert = await this.alerts.findOne({ where: { id } });
+    if (!alert) {
+      throw new NotFoundException('Alerta no encontrada');
+    }
+    await this.alerts.delete(id);
   }
 }

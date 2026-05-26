@@ -4,11 +4,12 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
-import { ProviderStatus, UserStatus } from '../../common/enums';
+import { DeviceStatus, ProviderStatus, UserStatus } from '../../common/enums';
 import {
   JwtPayload,
   SubjectType,
 } from '../../common/interfaces/jwt-payload.interface';
+import { ProviderDevice } from '../devices/entities/provider-device.entity';
 import { Provider } from '../providers/entities/provider.entity';
 import { LoginDto } from './dto/login.dto';
 import { User } from './entities/user.entity';
@@ -38,9 +39,38 @@ export class AuthService {
     private readonly users: Repository<User>,
     @InjectRepository(Provider)
     private readonly providers: Repository<Provider>,
+    @InjectRepository(ProviderDevice)
+    private readonly devices: Repository<ProviderDevice>,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Emite una sesión de prestador (tokens + datos) sin contraseña.
+   * La usa el flujo de activación por QR: el dispositivo es la credencial.
+   * El `deviceId` queda dentro del token para que el refresh pueda verificar
+   * que el dispositivo siga activo.
+   */
+  issueProviderSession(
+    provider: Provider,
+    deviceId: string,
+  ): ProviderLoginResult {
+    const tokens = this.signTokens({
+      sub: provider.id,
+      type: 'provider',
+      email: provider.email,
+      deviceId,
+    });
+    return {
+      ...tokens,
+      provider: {
+        id: provider.id,
+        apellido: provider.apellido,
+        nombre: provider.nombre,
+        tipoPrestador: provider.tipoPrestador,
+      },
+    };
+  }
 
   /** Autentica a un prestador desde la app mobile. */
   async loginProvider(dto: LoginDto): Promise<ProviderLoginResult> {
@@ -108,7 +138,7 @@ export class AuthService {
 
   /** Renueva el par de tokens a partir de un refresh token válido. */
   async refresh(refreshToken: string): Promise<AuthTokens> {
-    let decoded: { sub: string; type: SubjectType };
+    let decoded: { sub: string; type: SubjectType; deviceId?: string };
     try {
       decoded = this.jwt.verify(refreshToken, {
         secret: this.config.get<string>('jwt.refreshSecret'),
@@ -124,10 +154,25 @@ export class AuthService {
       if (!provider || provider.estado !== ProviderStatus.ACTIVO) {
         throw new UnauthorizedException('Prestador no disponible');
       }
+      // Sesión ligada a un dispositivo activado por QR: si coordinación lo
+      // revocó o reemplazó, el refresh falla y la app debe pedir un QR nuevo.
+      if (decoded.deviceId) {
+        const device = await this.devices.findOne({
+          where: { deviceId: decoded.deviceId, provider: { id: provider.id } },
+        });
+        if (!device || device.estado !== DeviceStatus.APROBADO) {
+          throw new UnauthorizedException(
+            'El dispositivo fue revocado. Activá la app con un nuevo QR.',
+          );
+        }
+        device.lastSeenAt = new Date();
+        await this.devices.save(device);
+      }
       return this.signTokens({
         sub: provider.id,
         type: 'provider',
         email: provider.email,
+        deviceId: decoded.deviceId,
       });
     }
 
@@ -151,7 +196,7 @@ export class AuthService {
         '30m') as JwtSignOptions['expiresIn'],
     });
     const refreshToken = this.jwt.sign(
-      { sub: payload.sub, type: payload.type },
+      { sub: payload.sub, type: payload.type, deviceId: payload.deviceId },
       {
         secret:
           this.config.get<string>('jwt.refreshSecret') ??

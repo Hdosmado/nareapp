@@ -25,6 +25,12 @@ export const validationSchema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().required(),
   JWT_REFRESH_TTL: Joi.string().default('30d'),
 
+  ACTIVATION_URL_BASE: Joi.string().default('https://app.empresa.com'),
+  ACTIVATION_CODE_TTL_HOURS: Joi.number().default(24),
+  ACTIVATION_MAX_CLAIM_ATTEMPTS: Joi.number().default(5),
+  ACTIVATION_CLAIM_RATE_LIMIT: Joi.number().default(30),
+  APP_DOWNLOAD_URL: Joi.string().default('https://app.empresa.com/descargar'),
+
   FCM_PROJECT_ID: Joi.string().allow('').optional(),
   FCM_CLIENT_EMAIL: Joi.string().allow('').optional(),
   FCM_PRIVATE_KEY: Joi.string().allow('').optional(),
