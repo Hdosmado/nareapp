@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceStatus } from '../../common/enums';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Provider } from '../providers/entities/provider.entity';
 import { RegisterDeviceDto } from './dto/register-device.dto';
 import { ProviderDevice } from './entities/provider-device.entity';
@@ -13,6 +14,7 @@ export class DevicesService {
     private readonly devices: Repository<ProviderDevice>,
     @InjectRepository(Provider)
     private readonly providers: Repository<Provider>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Registra o actualiza el dispositivo de un prestador. Queda pendiente. */
@@ -98,13 +100,24 @@ export class DevicesService {
     estado: DeviceStatus,
     coordinatorId: string,
   ): Promise<ProviderDevice> {
-    const device = await this.devices.findOne({ where: { id } });
+    const device = await this.devices.findOne({
+      where: { id },
+      relations: { provider: true },
+    });
     if (!device) {
       throw new NotFoundException('Dispositivo no encontrado');
     }
     device.estado = estado;
     device.approvedBy = coordinatorId;
     device.approvedAt = new Date();
-    return this.devices.save(device);
+    const saved = await this.devices.save(device);
+    if (estado === DeviceStatus.APROBADO && device.provider) {
+      await this.notifications.notifyProvider(
+        device.provider.id,
+        'dispositivo_aprobado',
+        { deviceId: device.deviceId },
+      );
+    }
+    return saved;
   }
 }
