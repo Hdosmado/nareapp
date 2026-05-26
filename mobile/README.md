@@ -15,6 +15,7 @@ Se conecta al backend NestJS del repositorio (`../backend`).
 - **Android SDK** con `platform-tools` y una plataforma `android-35`/`android-36`.
 - **JDK 17** (lo usa Gradle).
 - Un teléfono Android o un emulador para instalar el APK.
+- Para iOS: macOS con Xcode 15+ y CocoaPods. No buildable en WSL/Linux.
 
 Verificá el entorno con:
 
@@ -147,11 +148,42 @@ secundario. La app nunca crea cuentas: el prestador ya existe en el panel.
   al servicio, y se detiene al confirmar la llegada.
 - `CAMERA` — escaneo del QR de activación.
 
-## Servicios externos (placeholder en el MVP)
+## Build iOS
 
-- **Mapa:** no se integra el SDK de Google Maps ni una API key. La pantalla de
+La estructura `ios/` se generó con `flutter create --platforms=ios .`. El
+bundle id es `ar.com.nareapp.nareappMobile`. El `Info.plist` ya declara los
+permisos de ubicación (`NSLocationWhenInUseUsageDescription` y
+`NSLocationAlwaysAndWhenInUseUsageDescription`) y los background modes
+necesarios (`location` y `remote-notification`).
+
+Pasos para buildear iOS (necesita macOS con Xcode):
+
+```bash
+cd ios
+pod install   # solo la primera vez o tras cambiar deps
+cd ..
+flutter build ios --no-codesign   # validación sin firmar
+```
+
+Para producción hace falta firmar con un certificado del equipo Apple
+Developer (configurar `DEVELOPMENT_TEAM` en `Runner.xcodeproj` desde
+Xcode → Signing & Capabilities).
+
+## Servicios externos
+
+- **Firebase Cloud Messaging:** `firebase_core` + `firebase_messaging`
+  integrados. Las credenciales (`lib/firebase_options.dart`,
+  `android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist`)
+  son *placeholders* válidos sólo para que la app compile. Antes de subir
+  a producción, regenerarlos con FlutterFire CLI:
+
+  ```bash
+  dart pub global activate flutterfire_cli
+  flutterfire configure --project=<firebase-project-id>
+  ```
+
+  Hasta entonces, `FirebaseMessaging.getToken()` devuelve `null` y la app
+  sigue operativa sin push.
+- **Mapa:** no se integra el SDK de Google Maps todavía. La pantalla de
   mapa muestra una superficie de referencia y delega la navegación real a
   Google Maps por deep link `geo:`.
-- **Push:** no se integra Firebase (no hay `google-services.json`). La interfaz
-  `PushService` está lista; el `StubPushService` genera un token de reemplazo
-  para ejercitar `POST /push/register-token` de punta a punta.
