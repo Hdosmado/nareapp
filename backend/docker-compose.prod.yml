@@ -1,0 +1,86 @@
+# Compose de producción de NareApp backend.
+#
+# Levanta:
+#   - Postgres 16 con PostGIS (volumen persistente).
+#   - Backend NestJS compilado, con healthcheck sobre /api/health.
+#
+# Uso:
+#   cp .env.example .env.prod   # y completar las variables
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Las credenciales DB se pueden separar en otro .env si conviene.
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: nareapp-db-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-nareapp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nareapp}
+      POSTGRES_DB: ${DB_NAME:-nareapp}
+    volumes:
+      - nareapp-db-prod-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${DB_USERNAME:-nareapp} -d ${DB_NAME:-nareapp}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nareapp-backend-prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_PREFIX: api
+      APP_TIMEZONE: America/Argentina/Buenos_Aires
+
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-nareapp}
+      DB_PASSWORD: ${DB_PASSWORD:-nareapp}
+      DB_NAME: ${DB_NAME:-nareapp}
+      DB_SYNCHRONIZE: "false"
+      DB_LOGGING: "false"
+
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Falta JWT_ACCESS_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-30m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Falta JWT_REFRESH_SECRET}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
+
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
+      FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+
+      ACTIVATION_URL_BASE: ${ACTIVATION_URL_BASE:-https://app.empresa.com}
+      ACTIVATION_CODE_TTL_HOURS: ${ACTIVATION_CODE_TTL_HOURS:-24}
+      ACTIVATION_MAX_CLAIM_ATTEMPTS: ${ACTIVATION_MAX_CLAIM_ATTEMPTS:-5}
+      ACTIVATION_CLAIM_RATE_LIMIT: ${ACTIVATION_CLAIM_RATE_LIMIT:-30}
+      APP_DOWNLOAD_URL: ${APP_DOWNLOAD_URL:-https://app.empresa.com/descargar}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - --tries=1
+        - http://127.0.0.1:3000/api/health
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  nareapp-db-prod-data:

@@ -15,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AppConfigModule } from './modules/config/app-config.module';
 import { CoordinationModule } from './modules/coordination/coordination.module';
 import { DevicesModule } from './modules/devices/devices.module';
+import { HealthModule } from './modules/health/health.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { ProvidersModule } from './modules/providers/providers.module';
@@ -50,6 +51,8 @@ import { TrackingModule } from './modules/tracking/tracking.module';
     NotificationsModule,
     // Motor de riesgo (job programado).
     RiskEngineModule,
+    // Endpoint público de salud para healthchecks de Docker/LB.
+    HealthModule,
   ],
   providers: [
     // Guards globales: JWT primero (autentica), roles después (autoriza).
