@@ -16,6 +16,7 @@ import '../data/storage/session_store.dart';
 import '../services/connectivity_service.dart';
 import '../services/device_identity.dart';
 import '../services/location_service.dart';
+import '../services/push_service.dart';
 
 /// Proveedores de infraestructura (almacenamiento, cliente HTTP, servicios y
 /// repositorios). Son las hojas del árbol de dependencias: los controladores
@@ -38,6 +39,11 @@ final locationServiceProvider =
     Provider<LocationService>((ref) => LocationService());
 final deviceIdentityProvider =
     Provider<DeviceIdentity>((ref) => DeviceIdentity());
+
+/// Servicio de push real (FCM). En tests se sobreescribe con [StubPushService].
+final pushServiceProvider = Provider<PushService>(
+  (ref) => FirebaseMessagingPushService.instance(),
+);
 
 /// Estado de conexión observable; alimenta el modo offline-first.
 final connectivityStreamProvider = StreamProvider<bool>((ref) {

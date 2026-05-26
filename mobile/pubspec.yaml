@@ -12,6 +12,10 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
+  # Firebase: core para inicialización y messaging para FCM (push).
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+
   # Estado.
   flutter_riverpod: ^2.6.1
 

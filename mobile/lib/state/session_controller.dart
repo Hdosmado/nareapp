@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/auth_session.dart';
 import '../data/models/provider_summary.dart';
-import '../services/push_service.dart';
 import 'providers.dart';
 
 /// Situación de la sesión del prestador.
@@ -99,7 +98,7 @@ class SessionController extends Notifier<SessionState> {
     final deviceId = await _deviceId();
     final profile =
         await ref.read(deviceIdentityProvider).resolve(deviceId);
-    final push = await StubPushService(deviceId).obtainToken();
+    final push = await ref.read(pushServiceProvider).obtainToken();
     final session = await ref
         .read(activationRepositoryProvider)
         .claimWithCode(code, profile, pushToken: push);
@@ -111,7 +110,7 @@ class SessionController extends Notifier<SessionState> {
     final deviceId = await _deviceId();
     final profile =
         await ref.read(deviceIdentityProvider).resolve(deviceId);
-    final push = await StubPushService(deviceId).obtainToken();
+    final push = await ref.read(pushServiceProvider).obtainToken();
     final session = await ref
         .read(activationRepositoryProvider)
         .claimWithToken(token, profile, pushToken: push);
@@ -163,16 +162,30 @@ class SessionController extends Notifier<SessionState> {
   }
 
   /// Registra el token de push en el backend. Best-effort: si falla, no
-  /// interrumpe la sesión.
+  /// interrumpe la sesión. También se suscribe al `onTokenRefresh` para
+  /// re-registrar el token cuando FCM lo rota.
   Future<void> _registerPushToken(String deviceId) async {
+    final push = ref.read(pushServiceProvider);
     try {
-      final token = await StubPushService(deviceId).obtainToken();
+      await push.init();
+      final token = await push.obtainToken();
       if (token != null) {
         await ref.read(pushRepositoryProvider).registerToken(deviceId, token);
       }
     } catch (_) {
       // El registro de push no es crítico para operar.
     }
+    // Cuando FCM rota el token, lo re-registramos. El stream es bestef-fort:
+    // si la suscripción falla, la app sigue operativa.
+    push.tokenRefreshes.listen((refreshed) async {
+      try {
+        await ref
+            .read(pushRepositoryProvider)
+            .registerToken(deviceId, refreshed);
+      } catch (_) {
+        // Ignoramos errores: el próximo refresh o login lo intentará de nuevo.
+      }
+    });
   }
 
   void _onSessionExpired() {
