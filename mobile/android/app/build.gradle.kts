@@ -1,5 +1,7 @@
 plugins {
     id("com.android.application")
+    // Plugin que lee `google-services.json` para registrar FCM/Analytics.
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
