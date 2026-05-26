@@ -1,26 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/spacing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/models/assignment.dart';
+import '../../../state/providers.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/faux_map.dart';
 import '../../widgets/top_bar.dart';
 
-/// Pantalla de mapa del domicilio. El MVP muestra un mapa de reemplazo y
-/// delega la navegación real a Google Maps mediante un deep link `geo:`.
-class MapScreen extends StatelessWidget {
+/// Pantalla "Cómo llegar" con `GoogleMap` embebido: muestra el marker del
+/// domicilio y la ubicación actual del prestador, y conserva el botón
+/// "Abrir Google Maps" como fallback para la navegación paso a paso.
+class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key, required this.assignment});
 
   final Assignment assignment;
 
-  Future<void> _openGoogleMaps(BuildContext context) async {
-    final address = assignment.address;
-    final label = Uri.encodeComponent(
-      '${address.calle}, ${address.ciudad}',
-    );
+  @override
+  ConsumerState<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends ConsumerState<MapScreen> {
+  GoogleMapController? _controller;
+  LatLng? _currentLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshCurrentLocation();
+  }
+
+  /// Carga, best-effort, la ubicación actual del prestador para mostrar
+  /// el segundo marker. No pide permisos nuevos: si no hay, se omite.
+  Future<void> _refreshCurrentLocation() async {
+    final location = ref.read(locationServiceProvider);
+    final position = await location.currentPosition();
+    if (position != null && mounted) {
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+      });
+    }
+  }
+
+  Future<void> _openGoogleMaps() async {
+    final address = widget.assignment.address;
+    final label = Uri.encodeComponent('${address.calle}, ${address.ciudad}');
 
     final Uri geoUri;
     final Uri webUri;
@@ -56,9 +84,40 @@ class MapScreen extends StatelessWidget {
     }
   }
 
+  /// Markers del domicilio y de la ubicación actual del prestador, si la
+  /// tenemos. El marker actual usa un tono distinto para diferenciarlo.
+  Set<Marker> _markers(LatLng address) {
+    final markers = <Marker>{
+      Marker(
+        markerId: const MarkerId('domicilio'),
+        position: address,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: 'Domicilio'),
+      ),
+    };
+    if (_currentLocation != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('actual'),
+          position: _currentLocation!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
+          infoWindow: const InfoWindow(title: 'Estás acá'),
+        ),
+      );
+    }
+    return markers;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final address = assignment.address;
+    final address = widget.assignment.address;
+    final hasAddressCoords = address.hasCoordinates;
+    final addressLatLng = hasAddressCoords
+        ? LatLng(address.latitude!, address.longitude!)
+        : null;
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: NareTopBar(
@@ -78,11 +137,32 @@ class MapScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const FauxMap(height: 260),
+                    if (addressLatLng != null)
+                      SizedBox(
+                        height: 260,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: addressLatLng,
+                              zoom: 15,
+                            ),
+                            markers: _markers(addressLatLng),
+                            myLocationButtonEnabled: false,
+                            zoomControlsEnabled: false,
+                            onMapCreated: (controller) {
+                              _controller = controller;
+                            },
+                          ),
+                        ),
+                      )
+                    else
+                      const FauxMap(height: 260),
                     const SizedBox(height: Insets.x3),
                     Text(
-                      'Vista de referencia. Tocá "Abrir Google Maps" para '
-                      'la navegación paso a paso.',
+                      addressLatLng != null
+                          ? 'Tocá "Abrir Google Maps" para la navegación paso a paso.'
+                          : 'Vista de referencia. Tocá "Abrir Google Maps" para la navegación paso a paso.',
                       style: AppText.label.copyWith(letterSpacing: 0),
                     ),
                     const SizedBox(height: Insets.x5),
@@ -95,7 +175,7 @@ class MapScreen extends StatelessWidget {
                     Text('Persona a cuidar', style: AppText.label),
                     const SizedBox(height: Insets.x1 + 2),
                     Text(
-                      assignment.carePerson.nombreCompleto,
+                      widget.assignment.carePerson.nombreCompleto,
                       style: AppText.h3,
                     ),
                   ],
@@ -112,12 +192,18 @@ class MapScreen extends StatelessWidget {
               child: PrimaryButton(
                 label: 'ABRIR GOOGLE MAPS',
                 icon: Icons.open_in_new,
-                onPressed: () => _openGoogleMaps(context),
+                onPressed: _openGoogleMaps,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
   }
 }

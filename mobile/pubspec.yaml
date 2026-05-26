@@ -16,6 +16,11 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_messaging: ^15.1.3
 
+  # Mapa embebido en la pantalla "Cómo llegar". La API key se inyecta por
+  # `--dart-define=GOOGLE_MAPS_API_KEY=...` y se aplica via manifest
+  # placeholder en Android y `GMSServices.provideAPIKey` en iOS.
+  google_maps_flutter: ^2.9.0
+
   # Estado.
   flutter_riverpod: ^2.6.1
 

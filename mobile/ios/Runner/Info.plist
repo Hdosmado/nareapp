@@ -87,5 +87,12 @@
 	-->
 	<key>NSCameraUsageDescription</key>
 	<string>NareApp usa la cámara solo para escanear el código QR de activación de este teléfono.</string>
+	<!--
+		Google Maps API key. Se inyecta en build (Build Settings →
+		User-Defined → MAPS_API_KEY o vía xcconfig). Sin valor, el mapa
+		carga con la marca "For development purposes only".
+	-->
+	<key>MAPS_API_KEY</key>
+	<string>$(MAPS_API_KEY)</string>
 </dict>
 </plist>

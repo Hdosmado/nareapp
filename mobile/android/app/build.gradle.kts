@@ -25,6 +25,14 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // API key de Google Maps. Pasarla con:
+        //   flutter build apk --dart-define=GOOGLE_MAPS_API_KEY=AIza...
+        // o exportando MAPS_API_KEY en el entorno antes de buildear. Sin
+        // este valor el mapa carga pero pinta la marca "For development".
+        manifestPlaceholders["MAPS_API_KEY"] =
+            project.findProperty("MAPS_API_KEY") as String?
+                ?: System.getenv("MAPS_API_KEY")
+                ?: ""
     }
 
     buildTypes {
