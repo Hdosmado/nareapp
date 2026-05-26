@@ -1,0 +1,55 @@
+name: nareapp_mobile
+description: "NareApp - app del prestador de cuidado domiciliario"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Estado.
+  flutter_riverpod: ^2.6.1
+
+  # Cliente HTTP con interceptores (JWT, refresh).
+  dio: ^5.7.0
+
+  # Almacenamiento seguro del JWT.
+  flutter_secure_storage: ^9.2.4
+
+  # Persistencia local de la cola offline y la config.
+  shared_preferences: ^2.3.3
+
+  # Deep link a Google Maps (geo:) y links de privacidad.
+  url_launcher: ^6.3.1
+
+  # Detección de conectividad para el modo offline-first.
+  connectivity_plus: ^6.1.0
+
+  # GPS de la ventana pre-servicio (con foreground service en Android).
+  geolocator: ^13.0.2
+
+  # Identidad del dispositivo (deviceId, modelo, versión de SO).
+  device_info_plus: ^11.1.0
+
+  # Claves de idempotencia y deviceId estable.
+  uuid: ^4.5.1
+
+  # Escaneo de QR (mecanismo secundario de activación).
+  mobile_scanner: ^6.0.10
+
+  # Tipografías de marca (Bricolage Grotesque, Plus Jakarta Sans, JetBrains Mono).
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
