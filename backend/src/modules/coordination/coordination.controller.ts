@@ -52,4 +52,17 @@ export class CoordinationController {
   ) {
     return this.coordination.assignReplacement(id, user.sub, dto);
   }
+
+  /**
+   * Coordinación solicita al prestador que finalice el servicio. Dispara la
+   * notificación `solicitud_fin_servicio` al prestador asignado.
+   */
+  @Post('services/:id/request-end-service')
+  requestEndOfService(
+    @Param() { id }: IdParamDto,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CoordinationActionDto,
+  ) {
+    return this.coordination.requestEndOfService(id, user.sub, dto);
+  }
 }
