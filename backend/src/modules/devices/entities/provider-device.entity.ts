@@ -29,7 +29,7 @@ export class ProviderDevice extends BaseEntity {
   appVersion: string;
 
   @Column({ type: 'text', nullable: true })
-  pushToken: string;
+  pushToken: string | null;
 
   @Column({ type: 'enum', enum: DeviceStatus, default: DeviceStatus.PENDIENTE })
   estado: DeviceStatus;
