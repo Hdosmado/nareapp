@@ -22,4 +22,16 @@ export default () => ({
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret',
     refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
   },
+  fcm: {
+    /** Project ID del proyecto Firebase. Vacío ⇒ modo simulado (no envía). */
+    projectId: process.env.FCM_PROJECT_ID ?? '',
+    /** Client email del service account de Firebase. */
+    clientEmail: process.env.FCM_CLIENT_EMAIL ?? '',
+    /**
+     * Private key del service account. Las variables de entorno guardan los
+     * saltos de línea como `\n`; aquí se reemplazan por saltos reales para
+     * que `firebase-admin` pueda parsear la PEM.
+     */
+    privateKey: (process.env.FCM_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
+  },
 });
