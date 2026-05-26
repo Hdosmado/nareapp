@@ -112,6 +112,37 @@ export class CoordinationService {
     };
   }
 
+  /**
+   * Coordinación solicita al prestador que finalice el servicio: registra la
+   * acción y dispara la notificación push correspondiente (no cambia el
+   * estado del servicio — el cierre operativo lo hace el prestador desde la
+   * app con el check-out).
+   */
+  async requestEndOfService(
+    assignmentId: string,
+    coordinatorId: string,
+    dto: CoordinationActionDto,
+  ): Promise<CoordinationAction> {
+    const assignment = await this.loadAssignment(assignmentId, {
+      provider: true,
+    });
+    const action = await this.recordAction(
+      assignmentId,
+      coordinatorId,
+      CoordinationActionType.ENVIAR_NOTIFICACION,
+      dto.notes ?? 'Solicitud de fin de servicio',
+    );
+    if (assignment.provider) {
+      await this.notifications.notifyProvider(
+        assignment.provider.id,
+        'solicitud_fin_servicio',
+        { assignmentId, notes: dto.notes ?? null },
+        assignmentId,
+      );
+    }
+    return action;
+  }
+
   /** Registra que coordinación contactó al prestador. */
   markContacted(
     assignmentId: string,

@@ -58,4 +58,8 @@ export class ServiceAssignment extends BaseEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   checkOutAt: Date;
+
+  /** Momento en que el prestador recibió el recordatorio previo al servicio. */
+  @Column({ type: 'timestamptz', nullable: true })
+  reminderSentAt: Date | null;
 }

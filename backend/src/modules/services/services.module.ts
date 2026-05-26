@@ -9,6 +9,7 @@ import { AssignmentsController } from './assignments.controller';
 import { CoordinationAssignmentsController } from './coordination-assignments.controller';
 import { ServiceAssignment } from './entities/service-assignment.entity';
 import { Service } from './entities/service.entity';
+import { ServiceRemindersService } from './service-reminders.service';
 import { ServicesController } from './services.controller';
 import { ServicesService } from './services.service';
 
@@ -29,7 +30,7 @@ import { ServicesService } from './services.service';
     CoordinationAssignmentsController,
     AssignmentsController,
   ],
-  providers: [ServicesService],
+  providers: [ServicesService, ServiceRemindersService],
   exports: [ServicesService, TypeOrmModule],
 })
 export class ServicesModule {}
