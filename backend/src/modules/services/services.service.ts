@@ -1,16 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, FindOptionsWhere, In, Not, Repository } from 'typeorm';
+import { Between, In, Not, Repository } from 'typeorm';
 import { AssignmentStatus, RiskLevel, ServiceStatus } from '../../common/enums';
-import { argentinaDayRangeUtc } from '../../common/timezone.util';
+import { ARGENTINA_TZ, argentinaDayRangeUtc } from '../../common/timezone.util';
 import { PatientAddress } from '../patients/entities/patient-address.entity';
 import { Patient } from '../patients/entities/patient.entity';
 import { Provider } from '../providers/entities/provider.entity';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
-import { QueryServicesDto } from './dto/query-services.dto';
+import {
+  FranjaHoraria,
+  QueryServicesDto,
+} from './dto/query-services.dto';
 import { ServiceAssignment } from './entities/service-assignment.entity';
 import { Service } from './entities/service.entity';
+
+/** Rango horario [desde, hasta) en hora local Argentina por franja. */
+const FRANJA_HORAS: Record<FranjaHoraria, [number, number]> = {
+  [FranjaHoraria.MADRUGADA]: [0, 6],
+  [FranjaHoraria.MANANA]: [6, 12],
+  [FranjaHoraria.TARDE]: [12, 18],
+  [FranjaHoraria.NOCHE]: [18, 24],
+};
 
 @Injectable()
 export class ServicesService {
@@ -125,41 +136,71 @@ export class ServicesService {
     });
   }
 
-  /** Asignaciones de hoy para el panel, con filtros opcionales. */
+  /**
+   * Asignaciones de hoy (hora Argentina) para el panel.
+   * Filtros opcionales: city, province, status, franja horaria.
+   */
   getTodayForCoordination(
     query: QueryServicesDto,
   ): Promise<ServiceAssignment[]> {
     const { start, end } = argentinaDayRangeUtc();
-    const where: FindOptionsWhere<ServiceAssignment> = {
-      startTime: Between(start, end),
-    };
+    const qb = this.assignments
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.provider', 'provider')
+      .leftJoinAndSelect('a.patient', 'patient')
+      .leftJoinAndSelect('a.address', 'address')
+      .where('a.start_time BETWEEN :start AND :end', { start, end })
+      .orderBy('a.start_time', 'ASC');
+
     if (query.city) {
-      where.city = query.city;
+      qb.andWhere('LOWER(a.city) = LOWER(:city)', { city: query.city });
     }
     if (query.province) {
-      where.province = query.province;
+      qb.andWhere('LOWER(a.province) = LOWER(:province)', {
+        province: query.province,
+      });
     }
     if (query.status) {
-      where.status = query.status;
+      qb.andWhere('a.status = :status', { status: query.status });
     }
-    return this.assignments.find({
-      where,
-      relations: { patient: true, address: true, provider: true },
-      order: { startTime: 'ASC' },
-    });
+    if (query.franja) {
+      const [from, to] = FRANJA_HORAS[query.franja];
+      qb.andWhere(
+        `EXTRACT(HOUR FROM (a.start_time AT TIME ZONE :tz)) >= :hourFrom
+         AND EXTRACT(HOUR FROM (a.start_time AT TIME ZONE :tz)) < :hourTo`,
+        { tz: ARGENTINA_TZ, hourFrom: from, hourTo: to },
+      );
+    }
+
+    return qb.getMany();
   }
 
-  /** Asignaciones de hoy en riesgo (amarillo, naranja o rojo). */
+  /**
+   * Asignaciones en riesgo (riskLevel != verde), sin límite de día.
+   * Ordenadas por severidad (rojo > naranja > amarillo) y, como segundo
+   * criterio, por proximidad temporal al ahora (`|now - startTime|` ASC).
+   *
+   * "Proximidad" se interpreta en sentido temporal: coordinación no tiene
+   * un punto geográfico de referencia fijo desde el cual medir distancia.
+   */
   getRiskForCoordination(): Promise<ServiceAssignment[]> {
-    const { start, end } = argentinaDayRangeUtc();
-    return this.assignments.find({
-      where: {
-        startTime: Between(start, end),
-        riskLevel: In([RiskLevel.AMARILLO, RiskLevel.NARANJA, RiskLevel.ROJO]),
-      },
-      relations: { patient: true, address: true, provider: true },
-      order: { startTime: 'ASC' },
-    });
+    return this.assignments
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.provider', 'provider')
+      .leftJoinAndSelect('a.patient', 'patient')
+      .leftJoinAndSelect('a.address', 'address')
+      .where('a.risk_level != :verde', { verde: RiskLevel.VERDE })
+      .orderBy(
+        `CASE a.risk_level
+           WHEN '${RiskLevel.ROJO}' THEN 0
+           WHEN '${RiskLevel.NARANJA}' THEN 1
+           WHEN '${RiskLevel.AMARILLO}' THEN 2
+           ELSE 3
+         END`,
+        'ASC',
+      )
+      .addOrderBy('ABS(EXTRACT(EPOCH FROM (a.start_time - NOW())))', 'ASC')
+      .getMany();
   }
 
   async findAssignment(id: string): Promise<ServiceAssignment> {
