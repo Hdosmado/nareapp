@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -30,9 +31,21 @@ import { TrackingModule } from './modules/tracking/tracking.module';
       isGlobal: true,
       load: [configuration],
       validationSchema,
+      envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
     }),
     TypeOrmModule.forRootAsync(databaseConfig),
     ScheduleModule.forRoot(),
+    // Rate limiting: protege el endpoint público de activación frente a
+    // intentos de fuerza bruta sobre el código. El límite se lee de config.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: 60_000,
+          limit: config.get<number>('activation.claimRateLimit') ?? 30,
+        },
+      ],
+    }),
     // Módulo de auditoría: global, debe cargarse temprano.
     AuditModule,
     // Autenticación y configuración operativa.

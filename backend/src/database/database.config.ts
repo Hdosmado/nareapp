@@ -17,6 +17,7 @@ export const databaseConfig: TypeOrmModuleAsyncOptions = {
     password: config.get<string>('database.password'),
     database: config.get<string>('database.name'),
     synchronize: config.get<boolean>('database.synchronize'),
+    dropSchema: config.get<string>('nodeEnv') === 'test',
     logging: config.get<boolean>('database.logging'),
     autoLoadEntities: true,
     namingStrategy: new SnakeNamingStrategy(),

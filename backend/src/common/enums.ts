@@ -44,12 +44,26 @@ export enum DevicePlatform {
   IOS = 'ios',
 }
 
-/** Estado de aprobación de un dispositivo (gestionado desde el panel). */
+/**
+ * Estado de un dispositivo del prestador.
+ * En el flujo de activación por QR, `APROBADO` equivale a "dispositivo activo":
+ * el dispositivo queda operativo en el mismo acto de reclamar el QR, sin pasar
+ * por `PENDIENTE`. `REEMPLAZADO` habilita una nueva activación.
+ */
 export enum DeviceStatus {
   PENDIENTE = 'pendiente',
   APROBADO = 'aprobado',
   RECHAZADO = 'rechazado',
   REVOCADO = 'revocado',
+  REEMPLAZADO = 'reemplazado',
+}
+
+/** Estado de un token de activación por QR del dispositivo del prestador. */
+export enum ActivationTokenStatus {
+  PENDING = 'pending',
+  USED = 'used',
+  EXPIRED = 'expired',
+  REVOKED = 'revoked',
 }
 
 /** Estado de un servicio (la prestación a cubrir). */

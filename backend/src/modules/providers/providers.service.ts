@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { ProviderStatus } from '../../common/enums';
 import { CreateProviderDto } from './dto/create-provider.dto';
+import { UpdateProviderDto } from './dto/update-provider.dto';
 import { ProviderRole } from './entities/provider-role.entity';
 import { Provider } from './entities/provider.entity';
 
@@ -68,5 +69,63 @@ export class ProvidersService {
       throw new NotFoundException('Prestador no encontrado');
     }
     return provider;
+  }
+
+  /** Edita un prestador; rehashea la contraseña y valida email duplicado. */
+  async update(id: string, dto: UpdateProviderDto): Promise<Provider> {
+    const provider = await this.providers.findOne({ where: { id } });
+    if (!provider) {
+      throw new NotFoundException('Prestador no encontrado');
+    }
+
+    if (dto.email) {
+      const email = dto.email.toLowerCase();
+      if (email !== provider.email) {
+        const exists = await this.providers.findOne({ where: { email } });
+        if (exists) {
+          throw new ConflictException('Ya existe un prestador con ese email');
+        }
+      }
+      provider.email = email;
+    }
+
+    if (dto.password) {
+      provider.passwordHash = await bcrypt.hash(dto.password, 10);
+    }
+    if (dto.apellido !== undefined) {
+      provider.apellido = dto.apellido;
+    }
+    if (dto.nombre !== undefined) {
+      provider.nombre = dto.nombre;
+    }
+    if (dto.tipoPrestador !== undefined) {
+      provider.tipoPrestador = dto.tipoPrestador;
+    }
+    if (dto.telefono !== undefined) {
+      provider.telefono = dto.telefono;
+    }
+
+    await this.providers.save(provider);
+    return this.findOne(id);
+  }
+
+  /** Borrado físico del prestador; traduce el error de FK a ConflictException. */
+  async remove(id: string): Promise<void> {
+    await this.findOne(id);
+    try {
+      await this.providers.delete(id);
+    } catch (error) {
+      // 23503 = foreign_key_violation en Postgres: el prestador tiene
+      // asignaciones, eventos de asistencia u otros registros operativos.
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string })?.code === '23503'
+      ) {
+        throw new ConflictException(
+          'No se puede eliminar el prestador: tiene registros operativos asociados',
+        );
+      }
+      throw error;
+    }
   }
 }

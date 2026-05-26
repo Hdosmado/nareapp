@@ -20,6 +20,12 @@ export class CoordinationController {
     return this.coordination.getDashboard();
   }
 
+  /** Mapa operativo: domicilio y última ubicación del prestador. */
+  @Get('services/:id/last-location')
+  lastLocation(@Param() { id }: IdParamDto) {
+    return this.coordination.getLastLocation(id);
+  }
+
   @Post('services/:id/mark-contacted')
   markContacted(
     @Param() { id }: IdParamDto,

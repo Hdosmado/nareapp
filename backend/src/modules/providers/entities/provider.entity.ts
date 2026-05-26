@@ -5,7 +5,9 @@ import { ProviderRole } from './provider-role.entity';
 
 /**
  * Prestador que ejecuta los servicios domiciliarios de cuidado.
- * Se autentica en la app mobile con email + contraseña.
+ * Puede darse de alta desde el panel (email + contraseña) o por activación de
+ * dispositivo vía QR (email sin contraseña: el teléfono activado es su
+ * credencial).
  */
 @Entity('providers')
 export class Provider extends BaseEntity {
@@ -21,8 +23,10 @@ export class Provider extends BaseEntity {
   @Column({ nullable: true })
   telefono: string;
 
+  // Se solicita siempre (panel y alta por QR). Único: el índice admite varios
+  // NULL para tolerar registros heredados sin email.
   @Index({ unique: true })
-  @Column()
+  @Column({ nullable: true })
   email: string;
 
   @Column({ nullable: true, select: false })

@@ -4,6 +4,8 @@ import { DevicesModule } from '../devices/devices.module';
 import { ProviderDevice } from '../devices/entities/provider-device.entity';
 import { ServiceAssignment } from '../services/entities/service-assignment.entity';
 import { PreServiceLocationEvent } from './entities/pre-service-location-event.entity';
+import { LocationEventsAdminController } from './location-events-admin.controller';
+import { LocationEventsAdminService } from './location-events-admin.service';
 import { TrackingController } from './tracking.controller';
 import { TrackingService } from './tracking.service';
 
@@ -16,8 +18,8 @@ import { TrackingService } from './tracking.service';
     ]),
     DevicesModule,
   ],
-  controllers: [TrackingController],
-  providers: [TrackingService],
+  controllers: [TrackingController, LocationEventsAdminController],
+  providers: [TrackingService, LocationEventsAdminService],
   exports: [TrackingService],
 })
 export class TrackingModule {}

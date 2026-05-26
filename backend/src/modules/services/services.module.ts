@@ -4,6 +4,7 @@ import { PatientAddress } from '../patients/entities/patient-address.entity';
 import { Patient } from '../patients/entities/patient.entity';
 import { Provider } from '../providers/entities/provider.entity';
 import { DevicesModule } from '../devices/devices.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AssignmentsController } from './assignments.controller';
 import { CoordinationAssignmentsController } from './coordination-assignments.controller';
 import { ServiceAssignment } from './entities/service-assignment.entity';
@@ -21,6 +22,7 @@ import { ServicesService } from './services.service';
       PatientAddress,
     ]),
     DevicesModule,
+    NotificationsModule,
   ],
   controllers: [
     ServicesController,
