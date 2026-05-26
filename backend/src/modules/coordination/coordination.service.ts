@@ -7,6 +7,7 @@ import {
   RiskLevel,
 } from '../../common/enums';
 import { argentinaDayRangeUtc } from '../../common/timezone.util';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Provider } from '../providers/entities/provider.entity';
 import { ServiceAssignment } from '../services/entities/service-assignment.entity';
 import { AssignReplacementDto } from './dto/assign-replacement.dto';
@@ -34,6 +35,7 @@ export class CoordinationService {
     private readonly actions: Repository<CoordinationAction>,
     @InjectRepository(Provider)
     private readonly providers: Repository<Provider>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Contadores del tablero operativo para el día de hoy. */
@@ -137,6 +139,15 @@ export class CoordinationService {
       coordinatorId,
       CoordinationActionType.ASIGNAR_REEMPLAZO,
       `Reemplazo asignado: ${provider.apellido}, ${provider.nombre}`,
+    );
+    await this.notifications.notifyProvider(
+      provider.id,
+      'cambio_asignacion',
+      {
+        assignmentId: replacement.id,
+        originalAssignmentId: assignmentId,
+      },
+      replacement.id,
     );
     return replacement;
   }

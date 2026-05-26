@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Provider } from '../providers/entities/provider.entity';
 import { ServiceAssignment } from '../services/entities/service-assignment.entity';
 import { CoordinationController } from './coordination.controller';
@@ -13,6 +14,7 @@ import { CoordinationAction } from './entities/coordination-action.entity';
       CoordinationAction,
       Provider,
     ]),
+    NotificationsModule,
   ],
   controllers: [CoordinationController],
   providers: [CoordinationService],
