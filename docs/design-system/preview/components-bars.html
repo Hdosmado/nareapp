@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.frame { background:var(--sand-50); border:1px solid var(--ink-200); border-radius:14px; overflow:hidden; }
+.topbar { height:56px; background:var(--sand-0); border-bottom:1px solid var(--ink-200); display:flex; align-items:center; justify-content:space-between; padding:0 16px; }
+.title { font:700 17px/1 var(--font-body); color:var(--ink-900); letter-spacing:-0.01em; }
+.icon-btn { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--ink-800); }
+.bottombar { height:72px; background:var(--sand-0); border-top:1px solid var(--ink-200); display:flex; align-items:center; padding:0 8px; gap:4px; }
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; color:var(--ink-500); font:600 11px/1 var(--font-body); }
+.tab.active { color:var(--teal-700); }
+.spacer { background:var(--sand-50); padding:24px; font:500 13px/1 var(--font-body); color:var(--ink-500); text-align:center; }
+</style>
+</head>
+<body><div class="card" style="background:var(--sand-50); gap:18px;">
+  <div class="frame">
+    <div class="topbar">
+      <div class="title">Servicio actual</div>
+      <div class="icon-btn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      </div>
+    </div>
+    <div class="spacer">— contenido de la pantalla —</div>
+    <div class="bottombar">
+      <div class="tab active">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+        Hoy
+      </div>
+      <div class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></svg>
+        Servicios
+      </div>
+      <div class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+        Cuenta
+      </div>
+    </div>
+  </div>
+</div></body></html>

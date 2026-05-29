@@ -31,4 +31,9 @@ export class CheckOutDto {
 
   @IsString()
   idempotencyKey: string;
+
+  /** Motivo opcional cuando el prestador finaliza antes del horario previsto. */
+  @IsOptional()
+  @IsString()
+  earlyCheckoutReason?: string;
 }

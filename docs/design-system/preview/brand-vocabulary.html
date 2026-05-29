@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+table { border-collapse:collapse; width:100%; }
+th, td { text-align:left; padding:10px 12px; font:500 14px/1.4 var(--font-body); border-bottom:1px solid var(--ink-200); }
+th { font-weight:700; color:var(--ink-900); font-size:13px; }
+td.ok { color:var(--state-en-servicio-fg); }
+td.no { color:var(--state-ausente-fg); text-decoration:line-through; }
+.concept { color:var(--ink-700); }
+</style></head>
+<body><div class="card">
+  <table>
+    <thead><tr><th>Concepto</th><th>Decimos</th><th>No decimos</th></tr></thead>
+    <tbody>
+      <tr><td class="concept">Quien presta el servicio</td><td class="ok">prestador</td><td class="no">empleada · trabajadora</td></tr>
+      <tr><td class="concept">Persona cuidada</td><td class="ok">persona a cuidar</td><td class="no">paciente · cliente</td></tr>
+      <tr><td class="concept">El trabajo asignado</td><td class="ok">servicio asignado</td><td class="no">turno · shift</td></tr>
+      <tr><td class="concept">Llegada</td><td class="ok">llegué · confirmar llegada</td><td class="no">check-in · fichada</td></tr>
+      <tr><td class="concept">Salida</td><td class="ok">fin de servicio</td><td class="no">check-out · cierre</td></tr>
+      <tr><td class="concept">Central operativa</td><td class="ok">coordinación</td><td class="no">RRHH · admin</td></tr>
+      <tr><td class="concept">Cubrir un servicio</td><td class="ok">reemplazo · cobertura</td><td class="no">suplencia · backup</td></tr>
+    </tbody>
+  </table>
+</div></body></html>

@@ -56,7 +56,18 @@ export function CalendarPage() {
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['calendar-services'],
-    queryFn: () => apiFetch<Row[]>('/coordination/services?page=1&limit=200'),
+    queryFn: async () => {
+      const limit = 100;
+      const all: Row[] = [];
+      for (let page = 1; ; page += 1) {
+        const chunk = await apiFetch<Row[]>(
+          `/coordination/services?page=${page}&limit=${limit}`,
+        );
+        all.push(...chunk);
+        if (chunk.length < limit) break;
+      }
+      return all;
+    },
   });
 
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);

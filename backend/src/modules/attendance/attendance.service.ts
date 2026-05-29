@@ -99,6 +99,15 @@ export class AttendanceService {
     const assignment = await this.loadOwnedAssignment(assignmentId, providerId);
     const device = await this.resolveDevice(deviceId, providerId);
 
+    const now = new Date();
+
+    // El mobile decide si el cierre es temprano (umbral adaptativo proporcional
+    // al largo del turno, configurable en app_config) y, de serlo, ofrece
+    // registrar un motivo. El backend no recalcula el umbral: confía en el
+    // motivo que llega. Así el control funciona también en turnos cortos y no
+    // depende de la hora de reenvío en el path offline.
+    const earlyCheckoutReason = dto.earlyCheckoutReason?.trim() || null;
+
     const event = await this.events.save(
       this.events.create({
         assignment,
@@ -111,13 +120,15 @@ export class AttendanceService {
         timestampLocal: dto.timestampLocal
           ? new Date(dto.timestampLocal)
           : undefined,
-        timestampServer: new Date(),
+        timestampServer: now,
+        earlyCheckoutReason,
         idempotencyKey: dto.idempotencyKey,
       }),
     );
 
     assignment.status = AssignmentStatus.FINALIZADO;
     assignment.checkOutAt = event.timestampServer;
+    assignment.earlyCheckout = earlyCheckoutReason !== null;
     await this.assignments.save(assignment);
 
     return event;

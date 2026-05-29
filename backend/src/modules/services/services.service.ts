@@ -218,9 +218,11 @@ export class ServicesService {
   }
 
   /** Asignaciones del prestador para el día de hoy (zona horaria Argentina). */
-  getTodayForProvider(providerId: string): Promise<ServiceAssignment[]> {
+  async getTodayForProvider(
+    providerId: string,
+  ): Promise<ServiceAssignment[]> {
     const { start, end } = argentinaDayRangeUtc();
-    return this.assignments.find({
+    const result = await this.assignments.find({
       where: {
         provider: { id: providerId },
         startTime: Between(start, end),
@@ -228,13 +230,18 @@ export class ServicesService {
       relations: { patient: true, address: true },
       order: { startTime: 'ASC' },
     });
+    // eslint-disable-next-line no-console
+    console.log(
+      `[DBG today] provider=${providerId} count=${result.length} range=${start.toISOString()}..${end.toISOString()} body=${JSON.stringify(result).slice(0, 500)}`,
+    );
+    return result;
   }
 
   /** Servicio actual o próximo del prestador (el primero aún no cerrado). */
-  getCurrentForProvider(
+  async getCurrentForProvider(
     providerId: string,
   ): Promise<ServiceAssignment | null> {
-    return this.assignments.findOne({
+    const result = await this.assignments.findOne({
       where: {
         provider: { id: providerId },
         status: Not(
@@ -248,6 +255,11 @@ export class ServicesService {
       relations: { patient: true, address: true },
       order: { startTime: 'ASC' },
     });
+    // eslint-disable-next-line no-console
+    console.log(
+      `[DBG current] provider=${providerId} body=${JSON.stringify(result).slice(0, 500)}`,
+    );
+    return result;
   }
 
   /**

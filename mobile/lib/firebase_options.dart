@@ -1,14 +1,9 @@
-// IMPORTANTE: Este archivo es un *placeholder* válido sólo para que la app
-// compile mientras no se haya creado el proyecto real de Firebase.
+// Generado para el proyecto Firebase `nareapp-8fc29`.
 //
-// Para producción, regenerarlo con FlutterFire CLI:
-//   dart pub global activate flutterfire_cli
-//   flutterfire configure --project=<project-id>
-//
-// Eso reemplaza este archivo y `android/app/google-services.json`/
-// `ios/Runner/GoogleService-Info.plist` por las credenciales reales del
-// proyecto. Sin reemplazo, `Firebase.initializeApp` resuelve pero
-// `FirebaseMessaging.getToken()` devuelve `null` (no hay APNs/GCM linkeado).
+// Para regenerar después de cambios en el proyecto Firebase, lo más cómodo es
+// `flutterfire configure --project=nareapp-8fc29` (requiere `firebase login`
+// interactivo). También se puede actualizar a mano con los valores de
+// `firebase apps:sdkconfig ANDROID|IOS <app-id> --project=nareapp-8fc29`.
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -33,22 +28,20 @@ class DefaultFirebaseOptions {
     }
   }
 
-  /// Stub Android. Reemplazar con `flutterfire configure`.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'stub-android-api-key',
-    appId: '1:000000000000:android:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'nareapp-stub',
-    storageBucket: 'nareapp-stub.appspot.com',
+    apiKey: 'AIzaSyCNyLFoQOLrHps6x2eLSp9ByPRat3LSJBs',
+    appId: '1:795455427313:android:c94429f59c32f1d23c0f50',
+    messagingSenderId: '795455427313',
+    projectId: 'nareapp-8fc29',
+    storageBucket: 'nareapp-8fc29.firebasestorage.app',
   );
 
-  /// Stub iOS. Reemplazar con `flutterfire configure`.
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'stub-ios-api-key',
-    appId: '1:000000000000:ios:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'nareapp-stub',
-    storageBucket: 'nareapp-stub.appspot.com',
+    apiKey: 'AIzaSyBGbYQL8KCuWJS6Fp6338KxAiu9eqPsKHw',
+    appId: '1:795455427313:ios:23ce8601e81aadcc3c0f50',
+    messagingSenderId: '795455427313',
+    projectId: 'nareapp-8fc29',
+    storageBucket: 'nareapp-8fc29.firebasestorage.app',
     iosBundleId: 'ar.com.nareapp.nareappMobile',
   );
 }

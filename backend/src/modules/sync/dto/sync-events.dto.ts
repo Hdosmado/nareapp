@@ -47,6 +47,11 @@ export class SyncEventDto {
   @IsOptional()
   @IsString()
   exceptionReason?: string;
+
+  /** Motivo opcional cuando el prestador finaliza antes del horario previsto. */
+  @IsOptional()
+  @IsString()
+  earlyCheckoutReason?: string;
 }
 
 /** Lote de eventos sincronizados al recuperar conexión. */

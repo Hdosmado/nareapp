@@ -38,6 +38,7 @@ export class AttendanceEventsAdminService {
       distanceToAddress: dto.distanceToAddress,
       insideAllowedRadius: dto.insideAllowedRadius,
       exceptionReason: dto.exceptionReason,
+      earlyCheckoutReason: dto.earlyCheckoutReason ?? null,
       timestampLocal: dto.timestampLocal
         ? new Date(dto.timestampLocal)
         : undefined,
@@ -88,6 +89,7 @@ export class AttendanceEventsAdminService {
       distanceToAddress: dto.distanceToAddress,
       insideAllowedRadius: dto.insideAllowedRadius,
       exceptionReason: dto.exceptionReason,
+      earlyCheckoutReason: dto.earlyCheckoutReason ?? null,
       timestampLocal: dto.timestampLocal
         ? new Date(dto.timestampLocal)
         : undefined,

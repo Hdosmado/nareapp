@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.pairs { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+.case { padding:14px 16px; border-radius:12px; }
+.case.good { background:var(--state-en-servicio-bg); color:var(--state-en-servicio-fg); }
+.case.bad  { background:var(--state-ausente-bg); color:var(--state-ausente-fg); }
+.head { font:700 12px/1 var(--font-body); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:8px; opacity:0.8; }
+.txt { font:500 15px/1.4 var(--font-body); }
+</style></head>
+<body><div class="card">
+  <div class="pairs">
+    <div class="case good"><div class="head">✓ así</div><div class="txt">Tu dispositivo está pendiente de aprobación por coordinación.</div></div>
+    <div class="case bad"><div class="head">✕ así no</div><div class="txt">¡Tu equipo está esperando que RRHH lo habilite! 🙌</div></div>
+  </div>
+  <div class="pairs">
+    <div class="case good"><div class="head">✓ así</div><div class="txt">Llegada registrada — 10:47.</div></div>
+    <div class="case bad"><div class="head">✕ así no</div><div class="txt">Check-in exitoso ✨</div></div>
+  </div>
+  <div class="pairs">
+    <div class="case good"><div class="head">✓ así</div><div class="txt">Sin conexión. Vamos a guardar la llegada y enviarla cuando vuelva la señal.</div></div>
+    <div class="case bad"><div class="head">✕ así no</div><div class="txt">¡Ups! Algo salió mal 😬</div></div>
+  </div>
+</div></body></html>

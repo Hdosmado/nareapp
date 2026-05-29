@@ -14,6 +14,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Requerido por flutter_local_notifications para usar APIs de
+        // java.time en minSdk anteriores a 26.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -25,10 +28,13 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        // API key de Google Maps. Pasarla con:
-        //   flutter build apk --dart-define=GOOGLE_MAPS_API_KEY=AIza...
-        // o exportando MAPS_API_KEY en el entorno antes de buildear. Sin
-        // este valor el mapa carga pero pinta la marca "For development".
+        // API key de Google Maps SDK for Android. Se inyecta en el manifest
+        // (meta-data com.google.android.geo.API_KEY). Formas de pasarla:
+        //   flutter build apk -P MAPS_API_KEY=AIza...
+        //   MAPS_API_KEY=AIza... flutter build apk
+        // Sin valor, el mapa carga pero queda gris con la marca
+        // "For development purposes only" (síntoma de key faltante).
+        // Pasos para habilitar la API: ver docs/MAPS-SETUP.md.
         manifestPlaceholders["MAPS_API_KEY"] =
             project.findProperty("MAPS_API_KEY") as String?
                 ?: System.getenv("MAPS_API_KEY")
@@ -52,4 +58,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

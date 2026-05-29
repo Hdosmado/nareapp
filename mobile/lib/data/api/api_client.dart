@@ -151,7 +151,12 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
     try {
       final res = await _dio.get<dynamic>(path, queryParameters: query);
-      return res.data;
+      // Nest serializa los handlers que retornan null como body vacío
+      // (Content-Length: 0). Lo normalizamos a null para que los repositorios
+      // que esperan `T | null` no rompan al castear.
+      final data = res.data;
+      if (data is String && data.isEmpty) return null;
+      return data;
     } on DioException catch (e) {
       throw _mapped(e);
     }

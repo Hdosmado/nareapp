@@ -9,6 +9,7 @@ import '../../../core/theme/typography.dart';
 import '../../../core/utils/formatting.dart';
 import '../../../data/api/api_exception.dart';
 import '../../../data/models/assignment.dart';
+import '../../../data/models/mobile_config.dart';
 import '../../../data/models/offline_event.dart';
 import '../../../state/assignments_controller.dart';
 import '../../../state/providers.dart';
@@ -17,7 +18,7 @@ import '../../widgets/banner.dart';
 import '../../widgets/buttons.dart';
 
 /// Paso del flujo de fin de servicio.
-enum _Step { confirm, submitting, done, error }
+enum _Step { confirm, earlyWarning, submitting, done, error }
 
 /// Bottom sheet de fin de servicio (FIN DE SERVICIO). Registra el cierre del
 /// servicio; la ubicación es opcional, así que no traba el cierre si no hay GPS.
@@ -34,8 +35,50 @@ class _EndServiceSheetState extends ConsumerState<EndServiceSheet> {
   _Step _step = _Step.confirm;
   String? _errorMessage;
   bool _queuedOffline = false;
+  final TextEditingController _reasonController = TextEditingController();
 
-  Future<void> _confirm() async {
+  @override
+  void initState() {
+    super.initState();
+    // Cierre temprano: vamos directo al aviso, sin pasar antes por la
+    // confirmación simple. Así el prestador ve un solo modal en vez de dos.
+    if (_isEarlyCheckout) {
+      _step = _Step.earlyWarning;
+    }
+  }
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  /// Umbral adaptativo: el bottom sheet aparece si al cerrar falta más del
+  /// [MobileConfig.earlyCheckoutThresholdPct] del turno total. Si la app
+  /// todavía no tiene config del backend, cae en el fallback (0.25 = 25%).
+  bool get _isEarlyCheckout {
+    final assignment = widget.assignment;
+    final remaining = assignment.endTime.difference(DateTime.now());
+    if (remaining <= Duration.zero) return false;
+    final duration = assignment.endTime.difference(assignment.startTime);
+    if (duration <= Duration.zero) return false;
+    final pct = ref.read(mobileConfigProvider).value?.earlyCheckoutThresholdPct ??
+        MobileConfig.fallback.earlyCheckoutThresholdPct;
+    final thresholdMs = (duration.inMilliseconds * pct).round();
+    return remaining.inMilliseconds > thresholdMs;
+  }
+
+  /// Punto de entrada desde el botón principal del paso de confirmación:
+  /// si la finalización es temprana, muestra el warning; si no, manda directo.
+  void _onConfirmTapped() {
+    if (_isEarlyCheckout) {
+      setState(() => _step = _Step.earlyWarning);
+    } else {
+      _submit();
+    }
+  }
+
+  Future<void> _submit() async {
     setState(() => _step = _Step.submitting);
 
     // La ubicación al cerrar es opcional: no debe trabar el fin de servicio.
@@ -50,6 +93,11 @@ class _EndServiceSheetState extends ConsumerState<EndServiceSheet> {
       accuracy = position.accuracy;
     }
 
+    final rawReason = _reasonController.text.trim();
+    final earlyReason = _isEarlyCheckout && rawReason.isNotEmpty
+        ? rawReason
+        : null;
+
     final event = OfflineEvent(
       idempotencyKey: const Uuid().v4(),
       type: OfflineEventType.checkOut,
@@ -58,6 +106,7 @@ class _EndServiceSheetState extends ConsumerState<EndServiceSheet> {
       latitude: latitude,
       longitude: longitude,
       accuracy: accuracy,
+      earlyCheckoutReason: earlyReason,
     );
 
     try {
@@ -86,6 +135,8 @@ class _EndServiceSheetState extends ConsumerState<EndServiceSheet> {
     switch (_step) {
       case _Step.confirm:
         return _buildConfirm();
+      case _Step.earlyWarning:
+        return _buildEarlyWarning();
       case _Step.submitting:
         return _buildSubmitting();
       case _Step.done:
@@ -120,7 +171,56 @@ class _EndServiceSheetState extends ConsumerState<EndServiceSheet> {
           style: AppText.body.copyWith(color: AppColors.textMuted),
         ),
         const SizedBox(height: Insets.x5),
-        PrimaryButton(label: 'Fin de servicio', onPressed: _confirm),
+        PrimaryButton(label: 'Fin de servicio', onPressed: _onConfirmTapped),
+        const SizedBox(height: Insets.x2),
+        GhostButton(
+          label: 'Cancelar',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEarlyWarning() {
+    final remaining = widget.assignment.endTime.difference(DateTime.now());
+    final minutes = remaining.inMinutes;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Estás finalizando antes del horario previsto',
+            style: AppText.h2,
+          ),
+        ),
+        const SizedBox(height: Insets.x4),
+        NareBanner(
+          tone: BannerTone.warning,
+          title: 'Faltan unos $minutes min para el cierre previsto',
+          body:
+              'El servicio termina a las '
+              '${Fmt.time(widget.assignment.endTime)}. '
+              'Si querés, contanos por qué estás finalizando antes; queda '
+              'visible para coordinación.',
+        ),
+        const SizedBox(height: Insets.x4),
+        Text('Motivo (opcional)', style: AppText.label),
+        const SizedBox(height: Insets.x2),
+        TextField(
+          controller: _reasonController,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 280,
+          textInputAction: TextInputAction.newline,
+          decoration: const InputDecoration(
+            hintText: 'Ej: paciente se durmió, familiar tomó turno…',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: Insets.x4),
+        PrimaryButton(label: 'Finalizar igual', onPressed: _submit),
         const SizedBox(height: Insets.x2),
         GhostButton(
           label: 'Cancelar',
