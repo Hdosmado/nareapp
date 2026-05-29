@@ -15,6 +15,50 @@ const FCM_INVALID_TOKEN_ERRORS = new Set([
 ]);
 
 /**
+ * Mapea cada tipo operativo a título/cuerpo legibles. Esto va al campo
+ * `notification` de FCM, que es lo que Android usa para mostrar el banner
+ * automáticamente cuando la app está en background. El campo `data` se
+ * sigue mandando con el payload estructurado para el procesamiento interno.
+ */
+function renderNotification(
+  type: string,
+  payload: Record<string, unknown>,
+): { title: string; body: string } | null {
+  switch (type) {
+    case 'dispositivo_aprobado':
+      return {
+        title: 'Dispositivo habilitado',
+        body: 'Coordinación aprobó tu dispositivo. Ya podés operar normalmente.',
+      };
+    case 'cambio_asignacion':
+      return {
+        title: 'Cambio en tu agenda',
+        body: 'Hay una novedad en tus servicios. Revisá la app.',
+      };
+    case 'solicitud_fin_servicio':
+      return {
+        title: 'Solicitud de fin de servicio',
+        body:
+          typeof payload.notes === 'string' && payload.notes
+            ? `Coordinación: ${payload.notes}`
+            : 'Coordinación te pide que finalices el servicio en curso.',
+      };
+    case 'recordatorio_servicio':
+      return {
+        title: 'Próximo servicio',
+        body: 'Tu próximo servicio comienza en breve.',
+      };
+    case 'alerta_riesgo':
+      return {
+        title: 'Alerta de servicio',
+        body: 'Hay una alerta operativa en tu servicio. Revisá la app.',
+      };
+    default:
+      return null;
+  }
+}
+
+/**
  * Envío de notificaciones push a los prestadores via Firebase Cloud Messaging.
  *
  * - Si las credenciales del service account no están configuradas
@@ -142,13 +186,27 @@ export class NotificationsService {
     payload: Record<string, unknown>,
   ): Promise<void> {
     if (!this.fcmApp || !device.pushToken) return;
+    const notification = renderNotification(type, payload);
     try {
       await this.fcmApp.messaging().send({
         token: device.pushToken,
+        ...(notification ? { notification } : {}),
         data: {
           type,
           // FCM data payloads deben ser strings.
           payload: JSON.stringify(payload),
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            // Coincide con el canal creado por mobile en push_service.dart
+            // (`kPushChannelId`). Sin este id Android usa un canal default de
+            // baja importancia y la notif no aparece como heads-up.
+            channelId: 'nareapp_pushes',
+            sound: 'default',
+            defaultSound: true,
+            visibility: 'public',
+          },
         },
       });
     } catch (error) {

@@ -29,6 +29,7 @@ class OfflineEvent {
     this.longitude,
     this.accuracy,
     this.exceptionReason,
+    this.earlyCheckoutReason,
   });
 
   /// Clave de idempotencia: el backend descarta reenvíos con la misma clave.
@@ -43,6 +44,9 @@ class OfflineEvent {
   /// Motivo cuando la llegada se confirma fuera del radio del domicilio.
   final String? exceptionReason;
 
+  /// Motivo opcional al finalizar antes del horario previsto.
+  final String? earlyCheckoutReason;
+
   /// Cuerpo de un elemento del lote `POST /sync/events`.
   Map<String, dynamic> toSyncJson() => {
         'type': type.wire,
@@ -53,6 +57,8 @@ class OfflineEvent {
         if (accuracy != null) 'accuracy': accuracy,
         'timestampLocal': timestampLocal.toUtc().toIso8601String(),
         if (exceptionReason != null) 'exceptionReason': exceptionReason,
+        if (earlyCheckoutReason != null)
+          'earlyCheckoutReason': earlyCheckoutReason,
       };
 
   /// Cuerpo de los endpoints directos de asistencia/tracking.
@@ -63,6 +69,8 @@ class OfflineEvent {
         'timestampLocal': timestampLocal.toUtc().toIso8601String(),
         'idempotencyKey': idempotencyKey,
         if (exceptionReason != null) 'exceptionReason': exceptionReason,
+        if (earlyCheckoutReason != null)
+          'earlyCheckoutReason': earlyCheckoutReason,
       };
 
   Map<String, dynamic> toJson() => {
@@ -74,6 +82,7 @@ class OfflineEvent {
         'longitude': longitude,
         'accuracy': accuracy,
         'exceptionReason': exceptionReason,
+        'earlyCheckoutReason': earlyCheckoutReason,
       };
 
   factory OfflineEvent.fromJson(Map<String, dynamic> json) {
@@ -86,6 +95,7 @@ class OfflineEvent {
       longitude: (json['longitude'] as num?)?.toDouble(),
       accuracy: (json['accuracy'] as num?)?.toDouble(),
       exceptionReason: json['exceptionReason'] as String?,
+      earlyCheckoutReason: json['earlyCheckoutReason'] as String?,
     );
   }
 }

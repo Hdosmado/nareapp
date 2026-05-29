@@ -384,7 +384,7 @@ export const RESOURCES: ResourceDef[] = [
         required: true,
         createOnly: true,
       },
-      { name: 'providerId', label: 'Prestador', type: 'uuid' },
+      { name: 'providerId', label: 'Prestador', type: 'uuid', required: true },
       {
         name: 'status',
         label: 'Estado',

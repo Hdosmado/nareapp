@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>NareApp Mobile — UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css"/>
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--sand-100); }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 24px;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, rgba(31,148,148,0.08), transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, rgba(217,83,59,0.06), transparent 60%),
+      var(--sand-100);
+  }
+  .stage { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .device-label {
+    font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--ink-600);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .nav-pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 420px; }
+  .nav-pill {
+    appearance: none; border: 1px solid var(--ink-200); background: var(--sand-0);
+    color: var(--ink-800); border-radius: 999px; padding: 6px 12px;
+    font-family: var(--font-body); font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .nav-pill.active { background: var(--teal-700); color: #fff; border-color: var(--teal-700); }
+  .meta { color: var(--ink-600); font-family: var(--font-body); font-size: 12.5px; max-width: 420px; text-align: center; line-height: 1.4; }
+  @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes scanline {
+    0% { top: 8%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 92%; opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="device-wrap">
+    <div class="device-label">NareApp · Prototipo del prestador</div>
+    <div id="root"></div>
+    <div class="nav-pills" id="navPills"></div>
+    <div class="meta">Prototipo navegable. Tocá <b style="color:var(--coral-700)">LLEGUÉ</b> y luego <b style="color:var(--teal-700)">FIN DE SERVICIO</b>, o usá los chips de arriba para saltar entre pantallas.</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="android-frame.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+
+<script type="text/babel">
+const SERVICES = [
+  {
+    id: 's1', grupo: 'hoy',
+    persona: 'Cabrera, María Elena',
+    domicilio: 'Av. Pellegrini 1340, 4° B',
+    localidad: 'Rosario', provincia: 'Santa Fe',
+    fecha: 'Hoy', fechaCorta: 'mar 21',
+    horaInicio: '14:00', horaFin: '18:00',
+    state: 'proximo',
+  },
+  {
+    id: 's2', grupo: 'hoy',
+    persona: 'Domínguez, Roberto',
+    domicilio: 'Mendoza 2210, PB',
+    localidad: 'Rosario', provincia: 'Santa Fe',
+    fecha: 'Hoy', fechaCorta: 'mar 21',
+    horaInicio: '19:00', horaFin: '22:00',
+    state: 'pendiente',
+  },
+  {
+    id: 's3', grupo: 'prox',
+    persona: 'Vázquez, Lucía',
+    domicilio: 'Bv. Oroño 870',
+    localidad: 'Rosario', provincia: 'Santa Fe',
+    fecha: 'mié 22', fechaCorta: 'mié 22',
+    horaInicio: '08:00', horaFin: '12:00',
+    state: 'pendiente',
+  },
+  {
+    id: 's4', grupo: 'prox',
+    persona: 'Iturri, Norma',
+    domicilio: 'San Lorenzo 1056, 2° A',
+    localidad: 'Paraná', provincia: 'Entre Ríos',
+    fecha: 'jue 23', fechaCorta: 'jue 23',
+    horaInicio: '15:00', horaFin: '19:00',
+    state: 'pendiente',
+  },
+  {
+    id: 's5', grupo: 'prox',
+    persona: 'Romero, Edgardo',
+    domicilio: 'Av. Hipólito Yrigoyen 2300',
+    localidad: 'Córdoba', provincia: 'Córdoba',
+    fecha: 'vie 24', fechaCorta: 'vie 24',
+    horaInicio: '09:00', horaFin: '13:00',
+    state: 'pendiente',
+  },
+];
+
+const USER = { iniciales: 'MC', nombre: 'María Cabrera', rol: 'Asistente terapéutica', id: 'P-04821' };
+
+const SCREENS = [
+  { id: 'qr',        label: 'Vincular (QR)' },
+  { id: 'manual',    label: 'Código manual' },
+  { id: 'linked',    label: 'Vinculado' },
+  { id: 'pending',   label: 'Aprobación' },
+  { id: 'today',     label: 'Servicio actual' },
+  { id: 'map',       label: 'Mapa' },
+  { id: 'arrival',   label: 'Confirmar llegada' },
+  { id: 'arrived',   label: 'En servicio' },
+  { id: 'end',       label: 'Fin de servicio' },
+  { id: 'services',  label: 'Servicios' },
+  { id: 'account',   label: 'Cuenta' },
+  { id: 'privacy',   label: 'Privacidad' },
+];
+
+function App() {
+  const [screen, setScreen] = React.useState('qr');
+  const [tab, setTab] = React.useState('hoy');
+  const [services, setServices] = React.useState(SERVICES);
+  const [arrivalOpen, setArrivalOpen] = React.useState(false);
+  const [endOpen, setEndOpen] = React.useState(false);
+
+  // Update the first service's state when user marks llegué / fin
+  const setFirstState = (s) => setServices(prev => prev.map((sv, i) => i === 0 ? { ...sv, state: s } : sv));
+  const current = services[0];
+
+  // Allow nav pills to jump anywhere; some screens are derived from "today" with state changes.
+  const goto = (id) => {
+    if (id === 'arrival')  { setScreen('today'); setArrivalOpen(true); return; }
+    if (id === 'end')      { setFirstState('llegue'); setScreen('today'); setEndOpen(true); return; }
+    if (id === 'arrived')  { setFirstState('llegue'); setScreen('today'); return; }
+    if (id === 'today')    { setFirstState('proximo'); }
+    if (id === 'services') setTab('servicios');
+    if (id === 'account')  setTab('cuenta');
+    if (id === 'today')    setTab('hoy');
+    setArrivalOpen(false); setEndOpen(false);
+    setScreen(id);
+  };
+
+  // Render pills outside the device
+  React.useEffect(() => {
+    const root = document.getElementById('navPills');
+    root.innerHTML = '';
+    SCREENS.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'nav-pill' + (s.id === screen ? ' active' : '');
+      b.textContent = s.label;
+      b.onclick = () => goto(s.id);
+      root.appendChild(b);
+    });
+  }, [screen, services]);
+
+  const onTabChange = (id) => {
+    setTab(id);
+    if (id === 'hoy') setScreen('today');
+    if (id === 'servicios') setScreen('services');
+    if (id === 'cuenta') setScreen('account');
+  };
+
+  let content = null;
+  if (screen === 'qr') content = <QrScanScreen onScanned={() => setScreen('linked')} onManual={() => setScreen('manual')} />;
+  else if (screen === 'manual') content = <ManualCodeScreen onBack={() => setScreen('qr')} onLinked={() => setScreen('linked')} />;
+  else if (screen === 'linked') content = <DeviceLinkedScreen user={USER} onContinue={() => setScreen('today')} />;
+  else if (screen === 'pending') content = <PendingApprovalScreen onLogout={() => setScreen('qr')} onContinue={() => setScreen('today')} />;
+  else if (screen === 'today') content = (
+    <>
+      <TodayScreen
+        service={current}
+        activeTab={tab}
+        onTab={onTabChange}
+        onLlegue={() => setArrivalOpen(true)}
+        onFin={() => setEndOpen(true)}
+        onMap={() => setScreen('map')}
+        onOpenMaps={() => {}}
+      />
+      <ArrivalSheet open={arrivalOpen} onClose={() => setArrivalOpen(false)} outOfRadius={false}
+        onConfirm={() => { setArrivalOpen(false); setFirstState('llegue'); }}/>
+      <EndSheet open={endOpen} onClose={() => setEndOpen(false)}
+        onConfirm={() => { setEndOpen(false); setFirstState('finalizado'); }}/>
+    </>
+  );
+  else if (screen === 'map') content = (
+    <MapScreen service={current} onBack={() => setScreen('today')} onOpenMaps={() => {}} onLlegue={() => { setScreen('today'); setArrivalOpen(true); }}/>
+  );
+  else if (screen === 'services') content = (
+    <ServicesScreen services={services} activeTab={tab} onTab={onTabChange} onSelect={(s, m) => { if (m === 'map') setScreen('map'); else setScreen('today'); }}/>
+  );
+  else if (screen === 'account') content = (
+    <AccountScreen user={USER} activeTab={tab} onTab={onTabChange} onLogout={() => setScreen('qr')} onPrivacy={() => setScreen('privacy')}/>
+  );
+  else if (screen === 'privacy') content = (
+    <PrivacyScreen onBack={() => setScreen('account')}/>
+  );
+
+  return (
+    <div style={{
+      width: 392, height: 820, borderRadius: 36, overflow: 'hidden',
+      background: '#1d1b20',
+      border: '8px solid #2b2b30',
+      boxShadow: '0 40px 80px rgba(0,0,0,0.30), 0 8px 24px rgba(0,0,0,0.12)',
+      display: 'flex', flexDirection: 'column', boxSizing: 'border-box',
+      position: 'relative',
+    }}>
+      {/* Status bar */}
+      <div style={{
+        height: 36, background: 'var(--sand-50)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 18px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--ink-900)',
+        flexShrink: 0,
+      }}>
+        <span>9:42</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink-800)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h20V10L12 2 2 10v12z" opacity=".15"/><path d="M12 4.4 4 10.6V20h16v-9.4L12 4.4z"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4l2 2a7.074 7.074 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>84%</span>
+        </span>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+        {content}
+      </div>
+      {/* Gesture nav pill */}
+      <div style={{ height: 18, background: 'var(--sand-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 110, height: 4, borderRadius: 999, background: 'var(--ink-700)', opacity: 0.6 }}/>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

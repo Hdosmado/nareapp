@@ -60,6 +60,10 @@ export class AppConfigService implements OnModuleInit {
       trackingIntervalSec: this.getNumber('tracking.interval_sec', 600),
       trackingMaxWindowMin: this.getNumber('tracking.max_window_min', 90),
       geofenceRadiusM: this.getNumber('geofence.radius_m', 150),
+      earlyCheckoutThresholdPct: this.getNumber(
+        'early_checkout.threshold_pct',
+        0.25,
+      ),
     };
   }
 }

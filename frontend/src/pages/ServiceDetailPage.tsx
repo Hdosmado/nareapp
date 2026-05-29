@@ -296,6 +296,36 @@ export function ServiceDetailPage() {
       {data && (
         <div className="detail-grid">
           <div className="stack gap-4">
+            {isAssignment && pick(detail, ['earlyCheckout']) === true && (
+              <div className="banner banner--warn">
+                <Icon name="alert" size={16} className="banner__icon" />
+                <div className="stack gap-1">
+                  <b>Finalización anticipada</b>
+                  <span>
+                    El prestador marcó FIN DE SERVICIO más de 60 min antes del
+                    horario previsto.
+                  </span>
+                  {(() => {
+                    const reason = pickArray(detail, [
+                      'attendanceEvents',
+                      'attendance',
+                      'eventosAsistencia',
+                    ])
+                      .map((ev) => pick(ev, ['earlyCheckoutReason']))
+                      .find((r) => typeof r === 'string' && r.length > 0);
+                    return reason ? (
+                      <span>
+                        Motivo informado: <i>{String(reason)}</i>
+                      </span>
+                    ) : (
+                      <span className="muted">
+                        El prestador no informó motivo.
+                      </span>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
             <section className="card">
               <div className="card__head">
                 <div className="card__title">Datos del servicio</div>

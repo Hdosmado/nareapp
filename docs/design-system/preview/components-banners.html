@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.banner { display:flex; gap:12px; padding:14px 16px; border-radius:14px; align-items:flex-start; }
+.ico { width:24px; height:24px; flex-shrink:0; }
+.title { font:700 15px/1.25 var(--font-body); }
+.body { font:400 14px/1.4 var(--font-body); margin-top:2px; }
+</style>
+</head>
+<body><div class="card">
+  <div class="banner" style="background:var(--state-en-riesgo-bg); color:var(--state-en-riesgo-fg);">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <div><div class="title">Estás fuera del radio del domicilio</div><div class="body">¿Querés confirmar la llegada de todas formas? Vamos a marcarlo como excepción.</div></div>
+  </div>
+  <div class="banner" style="background:var(--state-sync-bg); color:var(--state-sync-fg);">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M16 17l-4-4-4 4"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg>
+    <div><div class="title">Sin conexión</div><div class="body">Vamos a guardar la llegada y enviarla cuando vuelva la señal.</div></div>
+  </div>
+  <div class="banner" style="background:var(--state-ausente-bg); color:var(--state-ausente-fg);">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+    <div><div class="title">PIN incorrecto</div><div class="body">Revisá el PIN y volvé a intentar.</div></div>
+  </div>
+</div></body></html>

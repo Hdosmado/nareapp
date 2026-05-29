@@ -1,14 +1,13 @@
 {
-  "_comment": "Placeholder no funcional. Reemplazar con el archivo real generado por la consola de Firebase para el proyecto productivo de NareApp. Sin reemplazar, la app compila pero FirebaseMessaging.getToken() devuelve null.",
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "nareapp-stub",
-    "storage_bucket": "nareapp-stub.appspot.com"
+    "project_number": "795455427313",
+    "project_id": "nareapp-8fc29",
+    "storage_bucket": "nareapp-8fc29.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:795455427313:android:c94429f59c32f1d23c0f50",
         "android_client_info": {
           "package_name": "ar.com.nareapp.nareapp_mobile"
         }
@@ -16,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "stub-android-api-key"
+          "current_key": "AIzaSyCNyLFoQOLrHps6x2eLSp9ByPRat3LSJBs"
         }
       ],
       "services": {

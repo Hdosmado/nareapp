@@ -71,4 +71,11 @@ export const CONFIG_DEFAULTS: ConfigDefault[] = [
     type: 'number',
     description: 'Radio de geocerca por defecto para validar la llegada',
   },
+  {
+    key: 'early_checkout.threshold_pct',
+    value: '0.25',
+    type: 'number',
+    description:
+      'Fracción del turno restante que dispara el pedido de motivo al finalizar (ej. 0.25 = 25%)',
+  },
 ];

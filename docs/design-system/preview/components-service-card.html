@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.svc {
+  background:var(--sand-0); border:1px solid var(--ink-200); border-radius:14px; padding:18px 20px; display:flex; flex-direction:column; gap:12px;
+}
+.pill { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font:600 12px/1 var(--font-body); }
+.dot { width:7px; height:7px; border-radius:999px; }
+.row-sb { display:flex; justify-content:space-between; align-items:flex-start; }
+.name { font:700 20px/1.2 var(--font-body); color:var(--ink-900); letter-spacing:-0.01em; }
+.addr { font:400 15px/1.4 var(--font-body); color:var(--ink-700); }
+.meta { font:500 13px/1 var(--font-body); color:var(--ink-600); }
+.time { font:600 22px/1 var(--font-display); color:var(--ink-900); font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+</style>
+</head>
+<body><div class="card" style="background:var(--sand-50);">
+  <div class="svc">
+    <div class="row-sb">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <div class="name">Cabrera, María Elena</div>
+        <div class="addr">Av. Pellegrini 1340, 4° B</div>
+        <div class="meta">Rosario · Santa Fe</div>
+      </div>
+      <span class="pill" style="background:var(--state-proximo-bg); color:var(--state-proximo-fg);"><span class="dot" style="background:var(--state-proximo-dot)"></span>próximo</span>
+    </div>
+    <div style="height:1px; background:var(--ink-200);"></div>
+    <div class="row-sb" style="align-items:center;">
+      <div style="display:flex; flex-direction:column;">
+        <div class="meta">Hoy</div>
+        <div class="time">14:00 — 18:00</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button style="height:40px; padding:0 14px; border-radius:10px; border:1.5px solid var(--ink-200); background:var(--sand-0); font:600 14px/1 var(--font-body); color:var(--ink-800);">Ver mapa</button>
+      </div>
+    </div>
+  </div>
+</div></body></html>

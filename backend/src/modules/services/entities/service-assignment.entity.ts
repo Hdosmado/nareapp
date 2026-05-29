@@ -59,6 +59,15 @@ export class ServiceAssignment extends BaseEntity {
   @Column({ type: 'timestamptz', nullable: true })
   checkOutAt: Date;
 
+  /**
+   * Verdadero cuando el prestador finalizó de forma temprana y dejó un motivo.
+   * El mobile decide qué es "temprano" con un umbral adaptativo (porcentaje del
+   * turno, ver early_checkout.threshold_pct) y envía el motivo; el backend solo
+   * lo refleja, no recalcula.
+   */
+  @Column({ default: false })
+  earlyCheckout: boolean;
+
   /** Momento en que el prestador recibió el recordatorio previo al servicio. */
   @Column({ type: 'timestamptz', nullable: true })
   reminderSentAt: Date | null;

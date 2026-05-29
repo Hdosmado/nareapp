@@ -82,6 +82,7 @@ export class SyncService {
             accuracy: event.accuracy,
             timestampLocal: event.timestampLocal,
             idempotencyKey: event.idempotencyKey,
+            earlyCheckoutReason: event.earlyCheckoutReason,
           },
         );
       case SyncEventType.PRE_SERVICE_LOCATION:

@@ -51,6 +51,10 @@ export class AttendanceEvent extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   exceptionReason: string;
 
+  /** Motivo opcional informado por el prestador al finalizar antes de tiempo. */
+  @Column({ type: 'text', nullable: true })
+  earlyCheckoutReason: string | null;
+
   @Index({ unique: true })
   @Column()
   idempotencyKey: string;

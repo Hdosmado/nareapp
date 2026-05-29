@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.pill { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; font:600 13px/1 var(--font-body); }
+.dot { width:8px; height:8px; border-radius:999px; }
+.grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+.row3 { display:flex; gap:10px; flex-wrap:wrap; }
+</style>
+</head>
+<body><div class="card" style="gap:14px;">
+  <div class="row3">
+    <span class="pill" style="background:var(--state-pendiente-bg);color:var(--state-pendiente-fg);"><span class="dot" style="background:var(--state-pendiente-dot)"></span>pendiente</span>
+    <span class="pill" style="background:var(--state-proximo-bg);color:var(--state-proximo-fg);"><span class="dot" style="background:var(--state-proximo-dot)"></span>próximo</span>
+    <span class="pill" style="background:var(--state-en-riesgo-bg);color:var(--state-en-riesgo-fg);"><span class="dot" style="background:var(--state-en-riesgo-dot)"></span>en riesgo</span>
+    <span class="pill" style="background:var(--state-llegue-bg);color:var(--state-llegue-fg);"><span class="dot" style="background:var(--state-llegue-dot)"></span>llegué</span>
+    <span class="pill" style="background:var(--state-en-servicio-bg);color:var(--state-en-servicio-fg);"><span class="dot" style="background:var(--state-en-servicio-dot)"></span>en servicio</span>
+    <span class="pill" style="background:var(--state-finalizado-bg);color:var(--state-finalizado-fg);"><span class="dot" style="background:var(--state-finalizado-dot)"></span>finalizado</span>
+    <span class="pill" style="background:var(--state-ausente-bg);color:var(--state-ausente-fg);"><span class="dot" style="background:var(--state-ausente-dot)"></span>ausente</span>
+    <span class="pill" style="background:var(--state-demorado-bg);color:var(--state-demorado-fg);"><span class="dot" style="background:var(--state-demorado-dot)"></span>demorado</span>
+    <span class="pill" style="background:var(--state-sync-bg);color:var(--state-sync-fg);"><span class="dot" style="background:var(--state-sync-dot)"></span>pendiente de sincronización</span>
+  </div>
+  <div class="muted" style="font-size:13px; line-height:1.4;">
+    Cada estado tiene <b>fondo + texto + dot</b> con contraste accesible. Nunca se identifica un estado <i>solo</i> por color — siempre acompañado de etiqueta lowercase y dot.
+  </div>
+</div></body></html>
