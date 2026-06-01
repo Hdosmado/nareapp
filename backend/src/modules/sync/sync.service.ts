@@ -63,14 +63,25 @@ export class SyncService {
 
     switch (event.type) {
       case SyncEventType.CHECK_IN:
-        return this.attendance.checkIn(event.assignmentId, providerId, deviceId, {
-          latitude: event.latitude as number,
-          longitude: event.longitude as number,
-          accuracy: event.accuracy,
-          timestampLocal: event.timestampLocal,
-          idempotencyKey: event.idempotencyKey,
-          exceptionReason: event.exceptionReason,
-        });
+        // Path offline: el evento llega diferido. Se marca `offline: true` para
+        // que AttendanceService lo registre como offlineSynced y aplique la
+        // tolerancia de antigüedad correspondiente. El anti-fraude (ventana,
+        // geocerca, temprano) lo recalcula igual el servidor con su propia hora.
+        return this.attendance.checkIn(
+          event.assignmentId,
+          providerId,
+          deviceId,
+          {
+            latitude: event.latitude as number,
+            longitude: event.longitude as number,
+            accuracy: event.accuracy,
+            isMocked: event.isMocked,
+            timestampLocal: event.timestampLocal,
+            idempotencyKey: event.idempotencyKey,
+            exceptionReason: event.exceptionReason,
+          },
+          { offline: true },
+        );
       case SyncEventType.CHECK_OUT:
         return this.attendance.checkOut(
           event.assignmentId,
@@ -80,10 +91,12 @@ export class SyncService {
             latitude: event.latitude,
             longitude: event.longitude,
             accuracy: event.accuracy,
+            isMocked: event.isMocked,
             timestampLocal: event.timestampLocal,
             idempotencyKey: event.idempotencyKey,
             earlyCheckoutReason: event.earlyCheckoutReason,
           },
+          { offline: true },
         );
       case SyncEventType.PRE_SERVICE_LOCATION:
         return this.tracking.recordLocation(
@@ -96,6 +109,7 @@ export class SyncService {
             accuracy: event.accuracy,
             timestampLocal: event.timestampLocal,
             idempotencyKey: event.idempotencyKey,
+            locationPermission: event.locationPermission,
           },
         );
       default:

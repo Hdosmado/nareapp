@@ -39,6 +39,14 @@ export class AttendanceEvent extends BaseEntity {
   @Column({ nullable: true })
   insideAllowedRadius: boolean;
 
+  /**
+   * Bandera anti-spoofing reportada por la app: la ubicación provino de un
+   * proveedor simulado (mock location). Un `true` es un indicio fuerte de
+   * fraude; el servidor no blanquea el riesgo a VERDE en ese caso.
+   */
+  @Column({ default: false })
+  isMocked: boolean;
+
   @Column({ type: 'timestamptz', nullable: true })
   timestampLocal: Date;
 

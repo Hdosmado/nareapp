@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsNumber,
   IsOptional,
@@ -24,6 +25,11 @@ export class CheckOutDto {
   @IsOptional()
   @IsNumber()
   accuracy?: number;
+
+  /** Bandera anti-spoofing: ubicación de proveedor simulado (mock location). */
+  @IsOptional()
+  @IsBoolean()
+  isMocked?: boolean;
 
   @IsOptional()
   @IsDateString()

@@ -12,6 +12,7 @@ import '../../widgets/pressable.dart';
 import '../../widgets/top_bar.dart';
 import '../permissions/permission_intro_screen.dart';
 import '../privacy/privacy_screen.dart';
+import '../service/location_debug_screen.dart';
 import '../sync/sync_status_screen.dart';
 
 /// Pantalla de cuenta: perfil del prestador, dispositivo, sincronización,
@@ -143,6 +144,16 @@ class AccountScreen extends ConsumerWidget {
                 label: 'Privacidad',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                ),
+              ),
+              const Divider(height: 1),
+              _NavRow(
+                icon: Icons.travel_explore_outlined,
+                label: 'Diagnóstico de ubicación',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LocationDebugScreen(),
+                  ),
                 ),
               ),
             ],

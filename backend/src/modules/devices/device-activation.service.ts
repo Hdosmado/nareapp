@@ -72,6 +72,15 @@ export interface ActivationClaimResult {
  */
 @Injectable()
 export class DeviceActivationService {
+  // Anti fuerza bruta del código corto (H3/H5): la defensa son dos barreras
+  // que NO afectan a usuarios legítimos:
+  //   1) rate limit POR IP en el endpoint de claim (@Throttle 5/min), que acota
+  //      los reclamos con código equivocado por origen;
+  //   2) lockout POR TOKEN (registerFailedAttempt -> lockedUntil) ante fallos
+  //      repetidos contra un token concreto.
+  // No usamos un lockout global en memoria: bloquear el endpoint "para todos"
+  // ante N fallos sería un vector de denegación de servicio (un atacante manda
+  // unos pocos códigos malos y deja sin activar a todos los prestadores).
   constructor(
     @InjectRepository(DeviceActivationToken)
     private readonly tokens: Repository<DeviceActivationToken>,
@@ -82,6 +91,11 @@ export class DeviceActivationService {
     private readonly auth: AuthService,
     private readonly config: ConfigService,
   ) {}
+
+  /** Umbral de reclamos fallidos antes de bloquear (por token y global). */
+  private get maxClaimAttempts(): number {
+    return this.config.get<number>('activation.maxClaimAttempts') ?? 5;
+  }
 
   /** Construye la URL del QR de activación a partir del token en claro. */
   private buildActivationUrl(rawToken: string): string {
@@ -261,22 +275,45 @@ export class DeviceActivationService {
         'El código venció. Pedí uno nuevo a coordinación.',
       );
     }
+    // Lockout temporal del token tras una ráfaga de reclamos fallidos.
+    if (token.lockedUntil && token.lockedUntil.getTime() > Date.now()) {
+      throw new BadRequestException(
+        'Demasiados intentos sobre este código. Esperá unos minutos o pedí uno nuevo a coordinación.',
+      );
+    }
   }
 
   /**
-   * Registra un reclamo fallido sobre un token vigente. Al alcanzar el umbral
-   * de intentos configurado, revoca el token para frenar el abuso.
+   * Registra un reclamo fallido sobre un token VIGENTE y resuelto (p.ej. el
+   * teléfono ya está vinculado a otro prestador). Incrementa el contador
+   * persistente del token y, al alcanzar el umbral configurado, lo REVOCA para
+   * frenar el abuso de forma definitiva. El incremento se hace con un UPDATE
+   * atómico (no read-modify-write) para que reclamos concurrentes no pierdan
+   * cuenta.
+   *
+   * Los códigos que no resuelven a ningún token (la señal de fuerza bruta sobre
+   * el código de 8 dígitos) no llegan acá: a esos los acota el rate limit por
+   * IP del endpoint de claim.
    */
-  private async registerFailedAttempt(
-    token: DeviceActivationToken,
-  ): Promise<void> {
-    const maxAttempts =
-      this.config.get<number>('activation.maxClaimAttempts') ?? 5;
-    token.attemptCount += 1;
-    if (token.attemptCount >= maxAttempts) {
-      token.status = ActivationTokenStatus.REVOKED;
-    }
-    await this.tokens.save(token);
+  private async registerFailedAttempt(tokenId: string): Promise<void> {
+    const maxAttempts = this.maxClaimAttempts;
+    // Incremento atómico del contador y revocación condicional AL ALCANZAR el
+    // umbral, en un solo UPDATE (no read-modify-write) para que reclamos
+    // concurrentes no pierdan cuenta. No bloqueamos el token ENTRE intentos: la
+    // cadencia rápida ya la frena el rate limit por IP del endpoint, y revocar
+    // recién en el umbral mantiene la señal de conflicto (409) hasta agotar los
+    // intentos, momento en que el token queda revocado de forma definitiva.
+    await this.tokens
+      .createQueryBuilder()
+      .update()
+      .set({
+        attemptCount: () => 'attempt_count + 1',
+        status: () =>
+          `CASE WHEN attempt_count + 1 >= ${maxAttempts} AND status = '${ActivationTokenStatus.PENDING}' ` +
+          `THEN '${ActivationTokenStatus.REVOKED}' ELSE status END`,
+      })
+      .where('id = :id', { id: tokenId })
+      .execute();
   }
 
   /**
@@ -289,6 +326,9 @@ export class DeviceActivationService {
   ): Promise<ActivationClaimResult> {
     const token = await this.resolveToken(dto);
     if (!token) {
+      // Código/QR equivocado: no resuelve ningún token. La fuerza bruta sobre
+      // el código queda acotada por el rate limit POR IP del endpoint de claim
+      // (@Throttle), no por un lockout global que afectaría a todos.
       throw new BadRequestException(
         'No se pudo activar la app. Pedí un nuevo código a coordinación.',
       );
@@ -304,8 +344,6 @@ export class DeviceActivationService {
       );
     }
 
-    const now = new Date();
-
     // ¿El teléfono ya está vinculado y activo con OTRO prestador?
     const conflicting = await this.devices.findOne({
       where: {
@@ -315,47 +353,83 @@ export class DeviceActivationService {
       },
     });
     if (conflicting) {
-      await this.registerFailedAttempt(token);
+      await this.registerFailedAttempt(token.id);
       throw new ConflictException(
         'Este teléfono ya está vinculado. Contactá a coordinación.',
       );
     }
 
-    // Reutiliza la fila (prestador, deviceId) si ya existía; si no, la crea.
-    let device = await this.devices.findOne({
-      where: { deviceId: dto.deviceId, provider: { id: provider.id } },
-    });
-    if (device) {
-      device.plataforma = dto.platform;
-      device.modelo = dto.model ?? device.modelo;
-      device.osVersion = dto.osVersion ?? device.osVersion;
-      device.appVersion = dto.appVersion ?? device.appVersion;
-      device.pushToken = dto.pushToken ?? device.pushToken;
-      device.estado = DeviceStatus.APROBADO;
-      device.activatedAt = now;
-      device.revokedAt = null;
-      device.lastSeenAt = now;
-    } else {
-      device = this.devices.create({
-        provider,
-        deviceId: dto.deviceId,
-        plataforma: dto.platform,
-        modelo: dto.model,
-        osVersion: dto.osVersion,
-        appVersion: dto.appVersion,
-        pushToken: dto.pushToken,
-        estado: DeviceStatus.APROBADO,
-        activatedAt: now,
-        lastSeenAt: now,
-      });
-    }
-    device = await this.devices.save(device);
+    // Todo el reclamo va en una transacción: consumo atómico del token + alta
+    // del dispositivo. Si algo falla, nada queda a medias.
+    const device = await this.tokens.manager.transaction(async (manager) => {
+      const tokenRepo = manager.getRepository(DeviceActivationToken);
+      const deviceRepo = manager.getRepository(ProviderDevice);
+      const now = new Date();
 
-    // Consume el token: un solo uso, código y QR quedan inválidos.
-    token.status = ActivationTokenStatus.USED;
-    token.usedAt = now;
-    token.usedByDeviceId = dto.deviceId;
-    await this.tokens.save(token);
+      // Consumo ATÓMICO del token ANTES de crear el dispositivo: solo lo marca
+      // `used` si todavía está `pending`. Si otro dispositivo ya lo consumió,
+      // affected === 0 y rechazamos: el mismo código no activa dos teléfonos.
+      const consumed = await tokenRepo
+        .createQueryBuilder()
+        .update()
+        .set({
+          status: ActivationTokenStatus.USED,
+          usedAt: now,
+          usedByDeviceId: dto.deviceId,
+        })
+        .where('id = :id', { id: token.id })
+        .andWhere('status = :pending', {
+          pending: ActivationTokenStatus.PENDING,
+        })
+        .execute();
+
+      if ((consumed.affected ?? 0) !== 1) {
+        throw new BadRequestException(
+          'Este código ya fue utilizado. Pedí uno nuevo a coordinación.',
+        );
+      }
+
+      // Garantiza "un solo dispositivo aprobado por prestador": reemplaza los
+      // dispositivos aprobados previos del prestador (distintos a este).
+      await deviceRepo
+        .createQueryBuilder()
+        .update()
+        .set({ estado: DeviceStatus.REEMPLAZADO, revokedAt: now })
+        .where('provider_id = :providerId', { providerId: provider.id })
+        .andWhere('estado = :aprobado', { aprobado: DeviceStatus.APROBADO })
+        .andWhere('device_id != :deviceId', { deviceId: dto.deviceId })
+        .execute();
+
+      // Reutiliza la fila (prestador, deviceId) si ya existía; si no, la crea.
+      let device = await deviceRepo.findOne({
+        where: { deviceId: dto.deviceId, provider: { id: provider.id } },
+      });
+      if (device) {
+        device.plataforma = dto.platform;
+        device.modelo = dto.model ?? device.modelo;
+        device.osVersion = dto.osVersion ?? device.osVersion;
+        device.appVersion = dto.appVersion ?? device.appVersion;
+        device.pushToken = dto.pushToken ?? device.pushToken;
+        device.estado = DeviceStatus.APROBADO;
+        device.activatedAt = now;
+        device.revokedAt = null;
+        device.lastSeenAt = now;
+      } else {
+        device = deviceRepo.create({
+          provider,
+          deviceId: dto.deviceId,
+          plataforma: dto.platform,
+          modelo: dto.model,
+          osVersion: dto.osVersion,
+          appVersion: dto.appVersion,
+          pushToken: dto.pushToken,
+          estado: DeviceStatus.APROBADO,
+          activatedAt: now,
+          lastSeenAt: now,
+        });
+      }
+      return deviceRepo.save(device);
+    });
 
     const session = this.auth.issueProviderSession(provider, dto.deviceId);
     return {

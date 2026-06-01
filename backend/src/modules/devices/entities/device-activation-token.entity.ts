@@ -57,6 +57,14 @@ export class DeviceActivationToken extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   attemptCount: number;
 
+  /**
+   * Bloqueo temporal del token: mientras `lockedUntil` sea futuro, el token no
+   * puede reclamarse aunque siga `pending`. Se setea al acumular demasiados
+   * reclamos fallidos en una ráfaga (defensa anti fuerza bruta del código).
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  lockedUntil: Date | null;
+
   /** Usuario de coordinación que generó el token. */
   @Column({ type: 'uuid' })
   createdByUserId: string;

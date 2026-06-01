@@ -3,8 +3,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nareapp_mobile/core/constants/service_status.dart';
 import 'package:nareapp_mobile/core/utils/geo.dart';
+import 'package:nareapp_mobile/data/models/assignment.dart';
 import 'package:nareapp_mobile/data/models/mobile_config.dart';
 import 'package:nareapp_mobile/data/models/offline_event.dart';
+import 'package:nareapp_mobile/state/tracking_controller.dart';
 
 void main() {
   group('ServiceStatus', () {
@@ -78,24 +80,131 @@ void main() {
       expect(json['type'], 'check_out');
       expect(json['assignmentId'], 'assign-2');
     });
+
+    test('el latido lleva el permiso de ubicación en ambos cuerpos', () {
+      final event = OfflineEvent(
+        idempotencyKey: 'key-3',
+        type: OfflineEventType.preServiceLocation,
+        assignmentId: 'assign-3',
+        timestampLocal: DateTime.utc(2026, 5, 22, 12),
+        latitude: -32.95,
+        longitude: -60.64,
+        locationPermission: 'siempre',
+      );
+      expect(event.toDirectJson()['locationPermission'], 'siempre');
+      expect(event.toSyncJson()['locationPermission'], 'siempre');
+      expect(
+        OfflineEvent.fromJson(event.toJson()).locationPermission,
+        'siempre',
+      );
+    });
   });
 
   group('MobileConfig', () {
     test('usa los valores por defecto ante claves faltantes', () {
       final config = MobileConfig.fromJson(const {});
-      expect(config.trackingLeadMin, 45);
+      expect(config.trackingLeadMin, 10);
+      expect(config.trackingTrailMin, 10);
       expect(config.geofenceRadiusM, 150);
     });
 
     test('lee los valores presentes', () {
       final config = MobileConfig.fromJson(const {
         'trackingLeadMin': 30,
+        'trackingTrailMin': 15,
         'trackingIntervalSec': 300,
         'trackingMaxWindowMin': 60,
         'geofenceRadiusM': 200,
       });
       expect(config.trackingLeadMin, 30);
+      expect(config.trackingTrailMin, 15);
       expect(config.geofenceRadiusM, 200);
+    });
+  });
+
+  group('TrackingWindow / pickTrackingAssignment', () {
+    const config = MobileConfig(
+      trackingLeadMin: 10,
+      trackingTrailMin: 10,
+      trackingIntervalSec: 600,
+      trackingMaxWindowMin: 90,
+      geofenceRadiusM: 150,
+      earlyCheckoutThresholdPct: 0.25,
+    );
+    final now = DateTime.utc(2026, 5, 29, 13);
+
+    Assignment mk({
+      required String id,
+      required Duration startsIn,
+      Duration duration = const Duration(hours: 1),
+      ServiceStatus status = ServiceStatus.proximo,
+    }) {
+      final start = now.add(startsIn);
+      return Assignment(
+        id: id,
+        startTime: start,
+        endTime: start.add(duration),
+        status: status,
+        riskLevel: 'verde',
+        replacementRequired: false,
+        carePerson: const CarePerson(id: 'p', nombre: 'Ana', apellido: 'Gómez'),
+        address: const ServiceAddress(
+          id: 'a',
+          calle: 'Calle 1',
+          ciudad: 'Rosario',
+          provincia: 'Santa Fe',
+          allowedRadiusM: 150,
+        ),
+      );
+    }
+
+    test('arranca lead_min antes del inicio, no antes', () {
+      final soon = mk(id: 's', startsIn: const Duration(minutes: 5));
+      final tooEarly = mk(id: 'e', startsIn: const Duration(minutes: 20));
+      expect(TrackingWindow.contains(soon, config, now), isTrue);
+      expect(TrackingWindow.contains(tooEarly, config, now), isFalse);
+    });
+
+    test('sigue activo hasta trail_min después del fin', () {
+      // Terminó hace 5 min: con trail 10, sigue en ventana.
+      final justEnded = mk(
+        id: 't',
+        startsIn: const Duration(hours: -1, minutes: -5),
+      );
+      // Terminó hace 15 min: pasó el trail, fuera de ventana.
+      final wellEnded = mk(
+        id: 'w',
+        startsIn: const Duration(hours: -1, minutes: -15),
+      );
+      expect(TrackingWindow.contains(justEnded, config, now), isTrue);
+      expect(TrackingWindow.contains(wellEnded, config, now), isFalse);
+    });
+
+    test('elige el servicio en ventana e ignora los cancelados', () {
+      final cancelado = mk(
+        id: 'x',
+        startsIn: const Duration(minutes: 5),
+        status: ServiceStatus.cancelado,
+      );
+      final activo = mk(id: 'y', startsIn: const Duration(minutes: 5));
+      final picked = pickTrackingAssignment([cancelado, activo], config, now);
+      expect(picked?.id, 'y');
+    });
+
+    test('prioriza el servicio en curso sobre uno próximo', () {
+      final enServicio = mk(
+        id: 'in',
+        startsIn: const Duration(minutes: -5),
+        status: ServiceStatus.enServicio,
+      );
+      final proximo = mk(id: 'next', startsIn: const Duration(minutes: 8));
+      final picked = pickTrackingAssignment([proximo, enServicio], config, now);
+      expect(picked?.id, 'in');
+    });
+
+    test('sin servicios en ventana devuelve null', () {
+      final lejano = mk(id: 'far', startsIn: const Duration(hours: 3));
+      expect(pickTrackingAssignment([lejano], config, now), isNull);
     });
   });
 }

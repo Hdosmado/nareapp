@@ -8,23 +8,30 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { UserRole } from '../../common/enums';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
-/** ABM de usuarios del panel de coordinación. */
-@Roles(UserRole.COORDINADOR, UserRole.ADMIN)
+/**
+ * ABM de usuarios del panel de coordinación.
+ * Solo el ADMIN gestiona usuarios: un coordinador no debe poder crear ni
+ * editar usuarios (ni auto-promoverse a admin). La verificación de rol y de
+ * que nadie edite su propio rol/estado se hace además en el servicio.
+ */
+@Roles(UserRole.ADMIN)
 @Controller('coordination/users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.users.create(dto);
+  create(@CurrentUser() actor: JwtPayload, @Body() dto: CreateUserDto) {
+    return this.users.create(dto, actor);
   }
 
   @Get()
@@ -38,12 +45,16 @@ export class UsersController {
   }
 
   @Patch(':id')
-  update(@Param() { id }: IdParamDto, @Body() dto: UpdateUserDto) {
-    return this.users.update(id, dto);
+  update(
+    @Param() { id }: IdParamDto,
+    @CurrentUser() actor: JwtPayload,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.users.update(id, dto, actor);
   }
 
   @Delete(':id')
-  remove(@Param() { id }: IdParamDto) {
-    return this.users.remove(id);
+  remove(@Param() { id }: IdParamDto, @CurrentUser() actor: JwtPayload) {
+    return this.users.remove(id, actor);
   }
 }

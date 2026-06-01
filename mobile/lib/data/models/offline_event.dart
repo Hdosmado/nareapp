@@ -30,6 +30,8 @@ class OfflineEvent {
     this.accuracy,
     this.exceptionReason,
     this.earlyCheckoutReason,
+    this.locationPermission,
+    this.isMocked,
   });
 
   /// Clave de idempotencia: el backend descarta reenvíos con la misma clave.
@@ -47,6 +49,16 @@ class OfflineEvent {
   /// Motivo opcional al finalizar antes del horario previsto.
   final String? earlyCheckoutReason;
 
+  /// Nivel de permiso de ubicación en el latido ('siempre' | 'durante_uso' |
+  /// 'denegado' | 'desconocido'). Lo usa el control anti-fraude en servicio.
+  final String? locationPermission;
+
+  /// Bandera anti-spoofing: `true` si el sistema marcó esta posición como
+  /// simulada (`Position.isMocked`). La app NO decide "estoy dentro": solo
+  /// reporta coords + esta bandera; el backend recalcula la geocerca y evalúa
+  /// el fraude. Contrato con el backend: clave JSON `isMocked`.
+  final bool? isMocked;
+
   /// Cuerpo de un elemento del lote `POST /sync/events`.
   Map<String, dynamic> toSyncJson() => {
         'type': type.wire,
@@ -59,6 +71,9 @@ class OfflineEvent {
         if (exceptionReason != null) 'exceptionReason': exceptionReason,
         if (earlyCheckoutReason != null)
           'earlyCheckoutReason': earlyCheckoutReason,
+        if (locationPermission != null)
+          'locationPermission': locationPermission,
+        if (isMocked != null) 'isMocked': isMocked,
       };
 
   /// Cuerpo de los endpoints directos de asistencia/tracking.
@@ -71,6 +86,9 @@ class OfflineEvent {
         if (exceptionReason != null) 'exceptionReason': exceptionReason,
         if (earlyCheckoutReason != null)
           'earlyCheckoutReason': earlyCheckoutReason,
+        if (locationPermission != null)
+          'locationPermission': locationPermission,
+        if (isMocked != null) 'isMocked': isMocked,
       };
 
   Map<String, dynamic> toJson() => {
@@ -83,6 +101,8 @@ class OfflineEvent {
         'accuracy': accuracy,
         'exceptionReason': exceptionReason,
         'earlyCheckoutReason': earlyCheckoutReason,
+        'locationPermission': locationPermission,
+        'isMocked': isMocked,
       };
 
   factory OfflineEvent.fromJson(Map<String, dynamic> json) {
@@ -96,6 +116,8 @@ class OfflineEvent {
       accuracy: (json['accuracy'] as num?)?.toDouble(),
       exceptionReason: json['exceptionReason'] as String?,
       earlyCheckoutReason: json['earlyCheckoutReason'] as String?,
+      locationPermission: json['locationPermission'] as String?,
+      isMocked: json['isMocked'] as bool?,
     );
   }
 }

@@ -129,6 +129,7 @@ export class AuthService {
       type: 'user',
       email: user.email,
       rol: user.rol,
+      tv: user.tokenVersion,
     });
     return {
       ...tokens,
@@ -138,7 +139,12 @@ export class AuthService {
 
   /** Renueva el par de tokens a partir de un refresh token válido. */
   async refresh(refreshToken: string): Promise<AuthTokens> {
-    let decoded: { sub: string; type: SubjectType; deviceId?: string };
+    let decoded: {
+      sub: string;
+      type: SubjectType;
+      deviceId?: string;
+      tv?: number;
+    };
     try {
       decoded = this.jwt.verify(refreshToken, {
         secret: this.config.get<string>('jwt.refreshSecret'),
@@ -180,27 +186,76 @@ export class AuthService {
     if (!user || user.estado !== UserStatus.ACTIVO) {
       throw new UnauthorizedException('Usuario no disponible');
     }
+    // Revocación de sesiones del panel: el `tv` del refresh debe coincidir con
+    // la versión vigente del usuario. Tras un logout (que incrementa
+    // `tokenVersion`), todos los refresh emitidos antes quedan inválidos.
+    if (decoded.tv !== user.tokenVersion) {
+      throw new UnauthorizedException('La sesión fue cerrada. Iniciá sesión nuevamente.');
+    }
     return this.signTokens({
       sub: user.id,
       type: 'user',
       email: user.email,
       rol: user.rol,
+      tv: user.tokenVersion,
     });
   }
 
-  private signTokens(payload: JwtPayload): AuthTokens {
+  /**
+   * Cierra la sesión de un usuario del panel a partir de su refresh token:
+   * incrementa `tokenVersion` para revocar todas las sesiones activas. La
+   * limpieza de la cookie la hace el controller. Es idempotente y silencioso:
+   * un token inválido/expirado o de prestador no produce error (el logout
+   * siempre debe poder completarse desde el cliente).
+   */
+  async logout(refreshToken?: string): Promise<void> {
+    if (!refreshToken) {
+      return;
+    }
+    let decoded: { sub: string; type: SubjectType };
+    try {
+      decoded = this.jwt.verify(refreshToken, {
+        secret: this.config.get<string>('jwt.refreshSecret'),
+      });
+    } catch {
+      return;
+    }
+    if (decoded.type !== 'user') {
+      // Los prestadores se revocan vía dispositivo; no hay `tv` que tocar.
+      return;
+    }
+    const user = await this.users.findOne({ where: { id: decoded.sub } });
+    if (!user) {
+      return;
+    }
+    user.tokenVersion += 1;
+    await this.users.save(user);
+  }
+
+  private signTokens(
+    payload: JwtPayload & { tv?: number },
+  ): AuthTokens {
+    const accessSecret = this.config.get<string>('jwt.accessSecret');
+    const refreshSecret = this.config.get<string>('jwt.refreshSecret');
+    // Sin fallback público: si el secreto no está configurado, no se firma.
+    if (!accessSecret || !refreshSecret) {
+      throw new UnauthorizedException('Configuración de autenticación inválida');
+    }
     const accessToken = this.jwt.sign(payload, {
-      secret:
-        this.config.get<string>('jwt.accessSecret') ?? 'dev-access-secret',
+      secret: accessSecret,
       expiresIn: (this.config.get<string>('jwt.accessTtl') ??
         '30m') as JwtSignOptions['expiresIn'],
     });
     const refreshToken = this.jwt.sign(
-      { sub: payload.sub, type: payload.type, deviceId: payload.deviceId },
       {
-        secret:
-          this.config.get<string>('jwt.refreshSecret') ??
-          'dev-refresh-secret',
+        sub: payload.sub,
+        type: payload.type,
+        deviceId: payload.deviceId,
+        // `tv` solo viaja en los refresh del panel (type === 'user').
+        ...(payload.type === 'user' ? { tv: payload.tv } : {}),
+      },
+      {
+        secret: refreshSecret,
         expiresIn: (this.config.get<string>('jwt.refreshTtl') ??
           '30d') as JwtSignOptions['expiresIn'],
       },

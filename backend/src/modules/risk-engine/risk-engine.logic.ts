@@ -13,6 +13,13 @@ export interface RiskThresholds {
   tolerance: number;
   signalStaleMin: number;
   farDistanceM: number;
+  /**
+   * Minutos antes del inicio en que la app arranca el tracking
+   * (`tracking.lead_min`). Antes de esa marca todavía no se espera señal, así
+   * que la ausencia de GPS no genera alerta (evita falsos positivos cuando el
+   * lead de tracking es corto).
+   */
+  leadMin: number;
 }
 
 /** Variables de entrada para evaluar el riesgo de una asignación. */
@@ -57,6 +64,10 @@ export function decideRisk(
     riskLevel: RiskLevel,
   ): RiskDecision => ({ status, riskLevel, replacementRequired: false, alert: null });
 
+  // La señal de GPS recién se espera cuando arrancó la ventana de tracking
+  // (`leadMin` antes del inicio). Antes de eso, "sin señal" no es alerta.
+  const signalExpected = inputs.minutesToStart <= thresholds.leadMin;
+
   // Fuera de la ventana de observación: todavía no se evalúa.
   if (inputs.minutesToStart > thresholds.observationLead) {
     return plain(AssignmentStatus.PENDIENTE, RiskLevel.VERDE);
@@ -98,7 +109,7 @@ export function decideRisk(
         alert: { type: AlertType.LEJOS_15, severity: AlertSeverity.ALTA },
       };
     }
-    if (!inputs.hasFreshSignal) {
+    if (signalExpected && !inputs.hasFreshSignal) {
       return {
         status: AssignmentStatus.EN_RIESGO,
         riskLevel: RiskLevel.NARANJA,
@@ -114,7 +125,7 @@ export function decideRisk(
 
   // Ventana amarilla: faltan hasta 30 minutos.
   if (inputs.minutesToStart <= thresholds.yellowLead) {
-    if (!inputs.hasFreshSignal) {
+    if (signalExpected && !inputs.hasFreshSignal) {
       return {
         status: AssignmentStatus.EN_RIESGO,
         riskLevel: RiskLevel.AMARILLO,
@@ -127,4 +138,83 @@ export function decideRisk(
 
   // Observación iniciada (faltan hasta 45 minutos): sin alerta todavía.
   return plain(AssignmentStatus.PROXIMO, RiskLevel.VERDE);
+}
+
+/**
+ * Variables del tramo "en servicio": desde el "LLEGUÉ" hasta el fin + trail.
+ * El control anti-fraude se apoya en el latido de ubicación y el permiso
+ * reportados por la app.
+ */
+export interface InServiceInputs {
+  /** Minutos transcurridos desde el "LLEGUÉ". */
+  minutesSinceCheckIn: number;
+  /** Hay un latido en servicio reciente (antigüedad <= signalStaleMin). */
+  hasFreshServiceSignal: boolean;
+  /**
+   * El último latido en servicio cae dentro del radio del domicilio.
+   * `null` cuando todavía no hubo latido en servicio o el domicilio no tiene
+   * coordenadas (en ese caso no se evalúa la salida del radio).
+   */
+  insideGeofence: boolean | null;
+  /**
+   * El permiso de ubicación reportado es "Siempre". `null` cuando es
+   * desconocido (no se evalúa el permiso en ese caso).
+   */
+  locationPermissionAlways: boolean | null;
+}
+
+/** Resultado del tramo en servicio: nivel de riesgo y alertas a generar. */
+export interface InServiceDecision {
+  riskLevel: RiskLevel;
+  alerts: RiskAlert[];
+}
+
+/**
+ * Reglas del tramo "en servicio". No cambian el estado de la asignación
+ * (sigue `EN_SERVICIO`): el anti-fraude es operativo — coordinación ve la
+ * alerta y actúa. Puede devolver varias alertas a la vez.
+ *
+ *  - salió del radio del domicilio -> `SALIO_DURANTE_SERVICIO` (rojo).
+ *  - sin latido pasado el margen    -> `SIN_SENAL_EN_SERVICIO` (naranja).
+ *  - permiso ya no es "Siempre"     -> `SIN_PERMISO_UBICACION` (naranja).
+ */
+export function decideInServiceRisk(
+  inputs: InServiceInputs,
+  thresholds: RiskThresholds,
+): InServiceDecision {
+  const alerts: RiskAlert[] = [];
+
+  if (inputs.insideGeofence === false) {
+    alerts.push({
+      type: AlertType.SALIO_DURANTE_SERVICIO,
+      severity: AlertSeverity.ALTA,
+    });
+  }
+
+  // Se da un margen tras el "LLEGUÉ" antes de exigir el primer latido.
+  if (
+    inputs.minutesSinceCheckIn > thresholds.signalStaleMin &&
+    !inputs.hasFreshServiceSignal
+  ) {
+    alerts.push({
+      type: AlertType.SIN_SENAL_EN_SERVICIO,
+      severity: AlertSeverity.ALTA,
+    });
+  }
+
+  if (inputs.locationPermissionAlways === false) {
+    alerts.push({
+      type: AlertType.SIN_PERMISO_UBICACION,
+      severity: AlertSeverity.ALTA,
+    });
+  }
+
+  let riskLevel = RiskLevel.VERDE;
+  if (alerts.some((a) => a.type === AlertType.SALIO_DURANTE_SERVICIO)) {
+    riskLevel = RiskLevel.ROJO;
+  } else if (alerts.length > 0) {
+    riskLevel = RiskLevel.NARANJA;
+  }
+
+  return { riskLevel, alerts };
 }

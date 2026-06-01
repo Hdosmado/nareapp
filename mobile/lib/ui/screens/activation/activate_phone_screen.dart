@@ -44,8 +44,12 @@ class _ActivatePhoneScreenState extends ConsumerState<ActivatePhoneScreen> {
   }
 
   /// Permite cambiar la URL del backend sin recompilar (útil para probar
-  /// contra un emulador o una IP de red local distinta).
+  /// contra un emulador o una IP de red local distinta). Por seguridad (H16)
+  /// solo está disponible en builds de debug: en release la URL queda fijada
+  /// a la compilada y este editor ni siquiera se muestra.
   Future<void> _editServer() async {
+    final store = ref.read(serverConfigStoreProvider);
+    if (!store.canOverrideUrl) return;
     final controller = TextEditingController(text: _serverUrl);
     final nuevo = await showDialog<String>(
       context: context,
@@ -63,7 +67,8 @@ class _ActivatePhoneScreenState extends ConsumerState<ActivatePhoneScreen> {
               controller: controller,
               hint: 'http://10.0.2.2:3000',
               keyboardType: TextInputType.url,
-              help: 'Emulador: 10.0.2.2 · Teléfono: la IP de red de la PC',
+              help: 'Emulador: 10.0.2.2 · Teléfono: la IP de red de la PC. '
+                  'Solo https o un host de desarrollo (HTTP en LAN).',
             ),
           ],
         ),
@@ -80,7 +85,16 @@ class _ActivatePhoneScreenState extends ConsumerState<ActivatePhoneScreen> {
       ),
     );
     if (nuevo == null || nuevo.isEmpty) return;
-    await ref.read(serverConfigStoreProvider).save(nuevo);
+    // El store valida que sea https o un host de dev permitido; si no, rechaza.
+    final guardado = await store.save(nuevo);
+    if (!guardado) {
+      if (mounted) {
+        setState(() => _error =
+            'URL de servidor no válida. Usá https o un host de desarrollo '
+            '(p.ej. http://10.0.2.2:3000).');
+      }
+      return;
+    }
     ref.read(apiClientProvider).setBaseUrl(nuevo);
     if (mounted) {
       setState(() {
@@ -216,21 +230,26 @@ class _ActivatePhoneScreenState extends ConsumerState<ActivatePhoneScreen> {
                         onPressed: _loading ? null : _openLogin,
                       ),
                     ),
-                    const SizedBox(height: Insets.x5),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: _loading ? null : _editServer,
-                        icon: const Icon(
-                          Icons.dns_outlined,
-                          size: 16,
-                          color: AppColors.textFaint,
-                        ),
-                        label: Text(
-                          'Servidor: ${_serverUrl.isEmpty ? '—' : _serverUrl}',
-                          style: AppText.label.copyWith(letterSpacing: 0),
+                    // Editor de servidor: solo en debug. En release la URL del
+                    // backend queda fijada a la compilada y no se muestra ni se
+                    // puede cambiar (H16).
+                    if (ref.read(serverConfigStoreProvider).canOverrideUrl) ...[
+                      const SizedBox(height: Insets.x5),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: _loading ? null : _editServer,
+                          icon: const Icon(
+                            Icons.dns_outlined,
+                            size: 16,
+                            color: AppColors.textFaint,
+                          ),
+                          label: Text(
+                            'Servidor: ${_serverUrl.isEmpty ? '—' : _serverUrl}',
+                            style: AppText.label.copyWith(letterSpacing: 0),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

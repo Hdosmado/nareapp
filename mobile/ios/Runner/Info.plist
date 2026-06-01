@@ -63,19 +63,22 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<!--
-		Ubicación: NareApp solo usa el GPS en la ventana previa al inicio del
-		servicio para anticipar tardanzas y ausencias, y en la confirmación de
-		llegada ("LLEGUÉ"). No hace seguimiento permanente. La copia es
-		coherente con la pantalla de privacidad de la app.
+		Ubicación: NareApp comparte el GPS de forma automática durante la
+		ventana del servicio (desde unos minutos antes del inicio hasta poco
+		después del fin) con una notificación visible. Fuera de ese rato no se
+		usa. El permiso "Siempre" permite que el seguimiento siga aunque la app
+		esté en segundo plano o cerrada. La copia es coherente con la pantalla
+		de privacidad de la app.
 	-->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>NareApp usa tu ubicación solo en la ventana previa al servicio y al confirmar la llegada al domicilio. Coordinación lo necesita para anticipar tardanzas y ausencias.</string>
+	<string>NareApp comparte tu ubicación durante el servicio para que coordinación pueda acompañarte y anticipar demoras. Se activa solo en el horario del servicio y siempre con un aviso visible.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>NareApp comparte tu ubicación únicamente en la ventana previa al inicio del servicio (mientras se muestra la notificación visible) y al confirmar la llegada. No hace seguimiento permanente ni fuera de los horarios de tus servicios.</string>
+	<string>Para que tu ubicación se comparta durante todo el servicio, incluso con la app en segundo plano o cerrada, NareApp necesita el permiso "Siempre". Se activa solo en el horario del servicio (con la notificación visible) y se detiene al finalizar.</string>
 	<!--
-		Background modes: location para mantener viva la ventana pre-servicio
-		mientras la app está en segundo plano; remote-notification para que
-		FCM pueda despertar la app y entregar pushes data-only.
+		Background modes: location para mantener vivo el latido de ubicación
+		durante el servicio mientras la app está en segundo plano;
+		remote-notification para que FCM pueda despertar la app y entregar
+		pushes data-only.
 	-->
 	<key>UIBackgroundModes</key>
 	<array>
@@ -94,5 +97,54 @@
 	-->
 	<key>MAPS_API_KEY</key>
 	<string>$(MAPS_API_KEY)</string>
+	<!--
+		App Transport Security: contra producción se EXIGE HTTPS
+		(NSAllowsArbitraryLoads=false). El backend local de desarrollo no tiene
+		HTTPS y se accede por host del emulador o IP de red local, así que el
+		HTTP en claro se habilita SOLO como excepción por dominio, nunca de
+		forma global.
+
+		Para apuntar a un backend de dev expuesto por la IP de LAN de la PC
+		(ej. 192.168.1.95), agregá ese host como una entrada más dentro de
+		NSExceptionDomains (igual que 10.0.2.2/localhost). NO agregues dominios
+		de producción acá.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<!-- Permite HTTP contra el loopback local (dispositivo apuntando a sí
+		     mismo). No alcanza para IPs de LAN ni para el alias del emulador. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<!-- Excepciones de cleartext SOLO para hosts de desarrollo. -->
+		<key>NSExceptionDomains</key>
+		<dict>
+			<!-- Alias de la máquina anfitriona desde el emulador/simulador. -->
+			<key>10.0.2.2</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+			<!-- IP de LAN de la PC de dev: descomentá y ajustá al valor real.
+			<key>192.168.1.95</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+			-->
+		</dict>
+	</dict>
 </dict>
 </plist>

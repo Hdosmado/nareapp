@@ -3,11 +3,16 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, IsNull, Not, Repository } from 'typeorm';
 import { AssignmentStatus } from '../../common/enums';
+import { AppConfigService } from '../config/app-config.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ServiceAssignment } from './entities/service-assignment.entity';
 
-/** Cuánto antes del inicio del servicio se envía el recordatorio. */
-const REMINDER_LEAD_MINUTES = 60;
+/**
+ * Cuánto antes del inicio del servicio se envía el recordatorio, por defecto.
+ * Configurable en `app_config` con la clave `reminder.lead_min` (alineado con
+ * el arranque del tracking automático, `tracking.lead_min`).
+ */
+const DEFAULT_REMINDER_LEAD_MINUTES = 10;
 
 /** Tolerancia de la ventana de scan (en minutos) para no perder ningún servicio. */
 const REMINDER_WINDOW_MINUTES = 2;
@@ -39,6 +44,7 @@ export class ServiceRemindersService {
     @InjectRepository(ServiceAssignment)
     private readonly assignments: Repository<ServiceAssignment>,
     private readonly notifications: NotificationsService,
+    private readonly config: AppConfigService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -59,13 +65,15 @@ export class ServiceRemindersService {
   /** Ejecuta una pasada; devuelve cuántos recordatorios disparó. */
   async scan(): Promise<number> {
     const now = new Date();
+    const leadMin = this.config.getNumber(
+      'reminder.lead_min',
+      DEFAULT_REMINDER_LEAD_MINUTES,
+    );
     const from = new Date(
-      now.getTime() +
-        (REMINDER_LEAD_MINUTES - REMINDER_WINDOW_MINUTES) * 60_000,
+      now.getTime() + (leadMin - REMINDER_WINDOW_MINUTES) * 60_000,
     );
     const to = new Date(
-      now.getTime() +
-        (REMINDER_LEAD_MINUTES + REMINDER_WINDOW_MINUTES) * 60_000,
+      now.getTime() + (leadMin + REMINDER_WINDOW_MINUTES) * 60_000,
     );
 
     const due = await this.assignments.find({

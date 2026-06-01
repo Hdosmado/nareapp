@@ -30,6 +30,16 @@ function renderNotification(
         title: 'Dispositivo habilitado',
         body: 'Coordinación aprobó tu dispositivo. Ya podés operar normalmente.',
       };
+    case 'nueva_asignacion':
+      return {
+        title: 'Tenés una nueva persona a cuidar',
+        body: 'Te asignaron una nueva prestación. Tocá para ver los detalles.',
+      };
+    case 'asignacion_cancelada':
+      return {
+        title: 'Se canceló una prestación',
+        body: 'Una de tus prestaciones fue cancelada. Revisá la app.',
+      };
     case 'cambio_asignacion':
       return {
         title: 'Cambio en tu agenda',

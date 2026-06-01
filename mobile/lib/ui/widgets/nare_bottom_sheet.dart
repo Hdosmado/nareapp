@@ -29,6 +29,11 @@ class _SheetShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Alto del teclado cuando está abierto. Lo sumamos al padding inferior para
+    // que el sheet suba por encima del teclado y no tape los campos de texto
+    // (ej: el motivo en fin de servicio). El contenido va dentro de un scroll
+    // por si teclado + contenido superan el alto disponible.
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -37,27 +42,32 @@ class _SheetShell extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            Insets.screenPadX,
-            Insets.x3,
-            Insets.screenPadX,
-            Insets.x6,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: Insets.x4),
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(999),
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: keyboardInset),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              Insets.screenPadX,
+              Insets.x3,
+              Insets.screenPadX,
+              Insets.x6,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: Insets.x4),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
-              ),
-              child,
-            ],
+                child,
+              ],
+            ),
           ),
         ),
       ),

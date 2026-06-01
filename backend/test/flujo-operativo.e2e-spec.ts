@@ -76,7 +76,11 @@ describe('Flujo operativo completo (e2e)', () => {
   });
 
   it('coordinación crea un servicio y asigna al prestador', async () => {
-    const start = new Date(Date.now() + 24 * 3600 * 1000);
+    // El servicio debe estar en curso (ventana de fichaje): el anti-fraude
+    // server-side rechaza un check-in horas antes del inicio. Arrancó hace un
+    // rato y termina dentro de unas horas, así que "LLEGUÉ" ahora cae dentro
+    // de la ventana [inicio - lead, fin + trail].
+    const start = new Date(Date.now() - 5 * 60 * 1000);
     const end = new Date(start.getTime() + 4 * 3600 * 1000);
     const service = await request(app.getHttpServer())
       .post('/api/coordination/services')

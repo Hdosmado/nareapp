@@ -15,7 +15,6 @@ import '../../../services/location_service.dart';
 import '../../../state/assignments_controller.dart';
 import '../../../state/providers.dart';
 import '../../../state/sync_controller.dart';
-import '../../../state/tracking_controller.dart';
 import '../../widgets/banner.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/nare_text_field.dart';
@@ -42,6 +41,7 @@ class _ArrivalSheetState extends ConsumerState<ArrivalSheet> {
   double? _latitude;
   double? _longitude;
   double? _accuracy;
+  bool? _isMocked;
   double? _distance;
   LocationPermissionResult? _permission;
   String? _errorMessage;
@@ -85,6 +85,9 @@ class _ArrivalSheetState extends ConsumerState<ArrivalSheet> {
     _latitude = position.latitude;
     _longitude = position.longitude;
     _accuracy = position.accuracy;
+    // Bandera anti-spoofing: la app solo la reporta; el backend recalcula la
+    // geocerca y decide. No usamos isMocked para cambiar el flujo de la UI.
+    _isMocked = position.isMocked;
 
     final address = widget.assignment.address;
     if (address.hasCoordinates) {
@@ -115,14 +118,16 @@ class _ArrivalSheetState extends ConsumerState<ArrivalSheet> {
       latitude: _latitude,
       longitude: _longitude,
       accuracy: _accuracy,
+      isMocked: _isMocked,
       exceptionReason: outside ? _reason.text.trim() : null,
     );
 
     try {
       final outcome =
           await ref.read(syncControllerProvider.notifier).recordEvent(event);
-      // El tracking previo se detiene: ya no se comparte la ubicación.
-      await ref.read(trackingControllerProvider.notifier).stop();
+      // El tracking NO se corta al llegar: sigue activo durante todo el
+      // servicio (control anti-fraude). Se detiene solo al cerrarse la ventana
+      // (fin + trail), de forma automática.
       ref.read(assignmentsControllerProvider.notifier).applyLocalStatus(
             widget.assignment.id,
             ServiceStatus.enServicio,

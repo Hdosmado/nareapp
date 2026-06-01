@@ -37,6 +37,16 @@ export class DeviceApprovedGuard implements CanActivate {
       throw new ForbiddenException('Falta el identificador de dispositivo');
     }
 
+    // Binding fuerte: si la sesión trae el claim `deviceId` (las sesiones
+    // activadas por QR lo setean), el header X-Device-Id DEBE coincidir. Así un
+    // atacante no puede reutilizar el token de un prestador declarando otro
+    // dispositivo. Si el claim no está (login por password), no se exige.
+    if (user.deviceId && user.deviceId !== deviceId) {
+      throw new ForbiddenException(
+        'El dispositivo no coincide con la sesión activada.',
+      );
+    }
+
     const device = await this.devices.findOne({
       where: { deviceId, provider: { id: user.sub } },
     });
