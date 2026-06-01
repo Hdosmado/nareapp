@@ -1,19 +1,23 @@
 /// Parámetros operativos que la app obtiene de `GET /mobile/config`.
-/// Definen la ventana de tracking previo al servicio, el radio de geocerca y
-/// el umbral adaptativo de checkout temprano.
+/// Definen la ventana de tracking automático (lead + trail), el radio de
+/// geocerca y el umbral adaptativo de checkout temprano.
 class MobileConfig {
   const MobileConfig({
     required this.trackingLeadMin,
+    required this.trackingTrailMin,
     required this.trackingIntervalSec,
     required this.trackingMaxWindowMin,
     required this.geofenceRadiusM,
     required this.earlyCheckoutThresholdPct,
   });
 
-  /// Minutos antes del inicio en que la app activa el tracking.
+  /// Minutos antes del inicio en que la app activa el tracking automático.
   final int trackingLeadMin;
 
-  /// Frecuencia de muestreo de ubicación, en segundos.
+  /// Minutos después del fin en que la app mantiene el tracking activo.
+  final int trackingTrailMin;
+
+  /// Frecuencia del latido de ubicación, en segundos.
   final int trackingIntervalSec;
 
   /// Ventana máxima de tracking previo al servicio, en minutos.
@@ -28,7 +32,8 @@ class MobileConfig {
 
   /// Valores por defecto, alineados con `config.defaults.ts` del backend.
   static const MobileConfig fallback = MobileConfig(
-    trackingLeadMin: 45,
+    trackingLeadMin: 10,
+    trackingTrailMin: 10,
     trackingIntervalSec: 600,
     trackingMaxWindowMin: 90,
     geofenceRadiusM: 150,
@@ -41,7 +46,8 @@ class MobileConfig {
     double readDouble(String key, double fallbackValue) =>
         (json[key] as num?)?.toDouble() ?? fallbackValue;
     return MobileConfig(
-      trackingLeadMin: readInt('trackingLeadMin', 45),
+      trackingLeadMin: readInt('trackingLeadMin', 10),
+      trackingTrailMin: readInt('trackingTrailMin', 10),
       trackingIntervalSec: readInt('trackingIntervalSec', 600),
       trackingMaxWindowMin: readInt('trackingMaxWindowMin', 90),
       geofenceRadiusM: readInt('geofenceRadiusM', 150),
@@ -52,6 +58,7 @@ class MobileConfig {
 
   Map<String, dynamic> toJson() => {
         'trackingLeadMin': trackingLeadMin,
+        'trackingTrailMin': trackingTrailMin,
         'trackingIntervalSec': trackingIntervalSec,
         'trackingMaxWindowMin': trackingMaxWindowMin,
         'geofenceRadiusM': geofenceRadiusM,

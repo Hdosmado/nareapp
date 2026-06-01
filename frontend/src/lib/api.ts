@@ -1,15 +1,18 @@
 /**
- * Cliente HTTP del panel. Adjunta el access token, renueva con el refresh
- * token ante un 401 y, si la renovación falla, emite un evento de sesión
- * expirada que la capa de autenticación escucha para cerrar sesión.
+ * Cliente HTTP del panel. Adjunta el access token (mantenido SOLO en memoria),
+ * renueva la sesión ante un 401 usando el refresh token que el backend entrega
+ * como cookie HttpOnly (`nare_refresh`) y, si la renovación falla, emite un
+ * evento de sesión expirada que la capa de autenticación escucha para cerrar
+ * sesión.
+ *
+ * Modelo anti-XSS (H15): el refresh token NUNCA viaja ni se guarda en el
+ * cliente; vive en una cookie HttpOnly que el navegador adjunta sola gracias a
+ * `credentials: 'include'`. El access token vive solo en una variable de módulo
+ * (memoria); tras un reload se re-bootstrapea con `tryRefresh()`.
  */
 
 const API_URL: string =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
-
-const ACCESS_KEY = 'nareapp_access';
-const REFRESH_KEY = 'nareapp_refresh';
-const USER_KEY = 'nareapp_user';
 
 export interface PanelUser {
   id: string;
@@ -17,27 +20,35 @@ export interface PanelUser {
   rol: string;
 }
 
-/** Almacenamiento de tokens y usuario en `localStorage`. */
+/**
+ * Estado de sesión en memoria. El access token nunca toca `localStorage` ni
+ * `sessionStorage`: si el usuario recarga, se recupera la sesión vía la cookie
+ * HttpOnly llamando a `/auth/refresh`. El refresh token no se almacena acá:
+ * lo maneja el navegador como cookie HttpOnly inaccesible desde JS.
+ */
+let accessToken: string | null = null;
+let currentUser: PanelUser | null = null;
+
 export const session = {
   get access(): string | null {
-    return localStorage.getItem(ACCESS_KEY);
-  },
-  get refresh(): string | null {
-    return localStorage.getItem(REFRESH_KEY);
+    return accessToken;
   },
   get user(): PanelUser | null {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? (JSON.parse(raw) as PanelUser) : null;
+    return currentUser;
   },
-  save(access: string, refresh: string, user?: PanelUser): void {
-    localStorage.setItem(ACCESS_KEY, access);
-    localStorage.setItem(REFRESH_KEY, refresh);
-    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  /** Indica si hay un access token vigente en memoria. */
+  get isAuthenticated(): boolean {
+    return accessToken !== null;
   },
+  /** Guarda el access token en memoria y, opcionalmente, el usuario. */
+  save(access: string, user?: PanelUser): void {
+    accessToken = access;
+    if (user) currentUser = user;
+  },
+  /** Limpia el estado en memoria (no hay nada que borrar del storage). */
   clear(): void {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-    localStorage.removeItem(USER_KEY);
+    accessToken = null;
+    currentUser = null;
   },
 };
 
@@ -63,6 +74,8 @@ async function rawFetch(
 ): Promise<Response> {
   return fetch(`${API_URL}${path}`, {
     ...init,
+    // Necesario para que la cookie HttpOnly `nare_refresh` viaje en cada llamada.
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -71,22 +84,25 @@ async function rawFetch(
   });
 }
 
-/** Intenta renovar el par de tokens con el refresh token guardado. */
-async function tryRefresh(): Promise<boolean> {
-  const refresh = session.refresh;
-  if (!refresh) return false;
+/**
+ * Intenta renovar la sesión usando el refresh token que viaja como cookie
+ * HttpOnly (`nare_refresh`). No se envía body: el navegador adjunta la cookie
+ * sola gracias a `credentials: 'include'`. Si responde ok, guarda el nuevo
+ * access token en memoria.
+ */
+export async function tryRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: refresh }),
     });
     if (!res.ok) return false;
     const data = (await res.json()) as {
       accessToken: string;
-      refreshToken: string;
+      user?: PanelUser;
     };
-    session.save(data.accessToken, data.refreshToken);
+    session.save(data.accessToken, data.user);
     return true;
   } catch {
     return false;
@@ -100,7 +116,8 @@ export async function apiFetch<T>(
 ): Promise<T> {
   let res = await rawFetch(path, init, session.access);
 
-  if (res.status === 401 && session.refresh) {
+  // Ante un 401 intentamos renovar con la cookie HttpOnly y reintentamos una vez.
+  if (res.status === 401) {
     const renewed = await tryRefresh();
     if (renewed) res = await rawFetch(path, init, session.access);
   }
@@ -130,6 +147,8 @@ export async function loginRequest(
 ): Promise<PanelUser> {
   const res = await fetch(`${API_URL}/auth/panel/login`, {
     method: 'POST',
+    // El backend setea la cookie HttpOnly `nare_refresh` en esta respuesta.
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
@@ -141,9 +160,25 @@ export async function loginRequest(
   }
   const data = (await res.json()) as {
     accessToken: string;
-    refreshToken: string;
+    // El backend puede seguir incluyendo refreshToken en el body por
+    // compatibilidad; lo ignoramos deliberadamente (vive en la cookie HttpOnly).
     user: PanelUser;
   };
-  session.save(data.accessToken, data.refreshToken, data.user);
+  session.save(data.accessToken, data.user);
   return data.user;
+}
+
+/** Cierra la sesión: invalida el refresh en el backend y limpia la memoria. */
+export async function logoutRequest(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch {
+    // Aunque falle la llamada al backend, limpiamos el estado local igual.
+  } finally {
+    session.clear();
+  }
 }

@@ -10,6 +10,10 @@ import { User } from '../../src/modules/auth/entities/user.entity';
 /**
  * Levanta una instancia de la app NestJS configurada igual que en producción.
  * Usa la base `nareapp_test`, que se recrea en cada corrida (dropSchema).
+ *
+ * El rate limiting (ThrottlerGuard) queda ACTIVO: el límite del claim viene de
+ * config (ACTIVATION_CLAIM_RATE_LIMIT, 30 en .env.test), suficiente para los
+ * tests funcionales y para que el test dedicado de fuerza bruta lo ejercite.
  */
 export async function createTestApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({

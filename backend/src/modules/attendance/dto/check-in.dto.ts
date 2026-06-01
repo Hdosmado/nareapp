@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsNumber,
   IsOptional,
@@ -22,6 +23,15 @@ export class CheckInDto {
   @IsOptional()
   @IsNumber()
   accuracy?: number;
+
+  /**
+   * Bandera anti-spoofing: la app reporta si la ubicación proviene de un
+   * proveedor simulado (mock location). El servidor no confía ciegamente en
+   * ella, pero un `true` es un indicio fuerte de fraude y se trata como tal.
+   */
+  @IsOptional()
+  @IsBoolean()
+  isMocked?: boolean;
 
   @IsOptional()
   @IsDateString()

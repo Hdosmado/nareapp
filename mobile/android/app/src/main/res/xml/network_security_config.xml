@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Configuración de seguridad de red de NareApp.
+
+    Por defecto el tráfico en claro (HTTP) está DESHABILITADO: contra producción
+    la app exige HTTPS. El cleartext se permite SOLO contra los hosts de
+    desarrollo (emulador / máquina local), nunca contra Internet.
+
+    Si necesitás apuntar la app a un backend de dev expuesto por la IP de LAN de
+    tu PC (ej. 192.168.1.95), agregá ese host como un <domain> adicional dentro
+    del bloque de desarrollo de abajo. NO agregues dominios de producción acá.
+-->
+<network-security-config>
+    <!-- Cleartext deshabilitado por defecto: todo lo que no esté en la
+         allowlist de abajo debe usar HTTPS. -->
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!-- Allowlist de desarrollo: cleartext HTTP permitido SOLO acá. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Emulador Android: alias de la máquina anfitriona. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- Loopback (dispositivo/emulador apuntando a sí mismo). -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <!-- IP de LAN de la PC de dev: descomentá y ajustá al valor real.
+             Ej.: <domain includeSubdomains="false">192.168.1.95</domain> -->
+    </domain-config>
+</network-security-config>

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppConfigModule } from '../config/app-config.module';
 import { DevicesModule } from '../devices/devices.module';
 import { ProviderDevice } from '../devices/entities/provider-device.entity';
 import { ServiceAssignment } from '../services/entities/service-assignment.entity';
@@ -17,6 +18,7 @@ import { AttendanceEvent } from './entities/attendance-event.entity';
       ProviderDevice,
     ]),
     DevicesModule,
+    AppConfigModule,
   ],
   controllers: [AttendanceController, AttendanceEventsAdminController],
   providers: [AttendanceService, AttendanceEventsAdminService],

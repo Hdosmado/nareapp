@@ -2,13 +2,17 @@
     <!-- Conexión con el backend NareApp. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <!-- Ubicación: solo para la ventana previa al servicio y la confirmación
-         de llegada. La app no hace seguimiento permanente. -->
+    <!-- Ubicación: automática durante la ventana del servicio (desde unos
+         minutos antes del inicio hasta poco después del fin). Foreground
+         service con notificación visible; no es seguimiento encubierto. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Permite el latido de ubicación con la app en segundo plano (Android 10+).
+         Sin este permiso ("Siempre"), el seguimiento se corta al minimizar. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
 
-    <!-- Foreground service de ubicación con notificación visible durante la
-         ventana de tracking previo. -->
+    <!-- Foreground service de ubicación con notificación visible mientras dura
+         la ventana de tracking del servicio. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -20,7 +24,8 @@
         android:label="NareApp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config">
         <!-- API key de Google Maps inyectada en build via manifestPlaceholders.
              Si no se pasa, el mapa carga pero con marca "For development". -->
         <meta-data

@@ -184,6 +184,7 @@ export class CoordinationService {
       service: true,
       patient: true,
       address: true,
+      provider: true,
     });
     const provider = await this.providers.findOne({
       where: { id: dto.providerId },
@@ -192,9 +193,21 @@ export class CoordinationService {
       throw new NotFoundException('Prestador de reemplazo no encontrado');
     }
 
+    const originalProviderId = original.provider?.id ?? null;
+
     original.status = AssignmentStatus.CANCELADO;
     original.replacementRequired = false;
     await this.assignments.save(original);
+
+    // Avisar al prestador original que su asignación fue cancelada por reemplazo.
+    if (originalProviderId && originalProviderId !== provider.id) {
+      await this.notifications.notifyProvider(
+        originalProviderId,
+        'asignacion_cancelada',
+        { assignmentId: original.id, motivo: 'reemplazo' },
+        original.id,
+      );
+    }
 
     const replacement = await this.assignments.save(
       this.assignments.create({

@@ -17,9 +17,11 @@ export default () => ({
     logging: process.env.DB_LOGGING === 'true',
   },
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret',
+    // Sin fallback público: la validación de entorno (config/validation.ts)
+    // garantiza que estos secretos existan y sean fuertes antes de arrancar.
+    accessSecret: process.env.JWT_ACCESS_SECRET,
     accessTtl: process.env.JWT_ACCESS_TTL ?? '30m',
-    refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret',
+    refreshSecret: process.env.JWT_REFRESH_SECRET,
     refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
   },
   fcm: {

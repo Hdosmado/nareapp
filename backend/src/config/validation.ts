@@ -20,15 +20,48 @@ export const validationSchema = Joi.object({
   DB_SYNCHRONIZE: Joi.boolean().default(false),
   DB_LOGGING: Joi.boolean().default(false),
 
-  JWT_ACCESS_SECRET: Joi.string().required(),
+  // Los secretos JWT son obligatorios en todos los entornos. En PRODUCCIÓN se
+  // exigen además fuertes: longitud mínima de 32 caracteres y nunca los
+  // placeholders públicos del repo. En dev/test pueden ser valores propios
+  // más cortos (p.ej. los de .env.test), pero igual deben estar presentes.
+  JWT_ACCESS_SECRET: Joi.string()
+    .required()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string()
+        .min(32)
+        .invalid(
+          'cambiar-en-produccion-access-secret',
+          'cambiar-en-produccion-refresh-secret',
+          'dev-access-secret',
+          'dev-refresh-secret',
+        )
+        .required(),
+    }),
   JWT_ACCESS_TTL: Joi.string().default('30m'),
-  JWT_REFRESH_SECRET: Joi.string().required(),
+  JWT_REFRESH_SECRET: Joi.string()
+    .required()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string()
+        .min(32)
+        .invalid(
+          'cambiar-en-produccion-access-secret',
+          'cambiar-en-produccion-refresh-secret',
+          'dev-access-secret',
+          'dev-refresh-secret',
+        )
+        .required(),
+    }),
   JWT_REFRESH_TTL: Joi.string().default('30d'),
 
   ACTIVATION_URL_BASE: Joi.string().default('https://app.empresa.com'),
   ACTIVATION_CODE_TTL_HOURS: Joi.number().default(24),
   ACTIVATION_MAX_CLAIM_ATTEMPTS: Joi.number().default(5),
-  ACTIVATION_CLAIM_RATE_LIMIT: Joi.number().default(30),
+  // Reclamos de activación por minuto por IP. Endurecido (H5): 5/min por
+  // defecto frente a los 30 originales, que facilitaban la fuerza bruta del
+  // código de 8 dígitos. Configurable por entorno.
+  ACTIVATION_CLAIM_RATE_LIMIT: Joi.number().default(5),
   APP_DOWNLOAD_URL: Joi.string().default('https://app.empresa.com/descargar'),
 
   FCM_PROJECT_ID: Joi.string().allow('').optional(),

@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNumber,
@@ -9,6 +10,7 @@ import {
   IsUUID,
   ValidateNested,
 } from 'class-validator';
+import { LocationPermission } from '../../../common/enums';
 
 /** Tipo de evento operativo que la app puede sincronizar en diferido. */
 export enum SyncEventType {
@@ -40,6 +42,11 @@ export class SyncEventDto {
   @IsNumber()
   accuracy?: number;
 
+  /** Bandera anti-spoofing: ubicación de proveedor simulado (mock location). */
+  @IsOptional()
+  @IsBoolean()
+  isMocked?: boolean;
+
   @IsOptional()
   @IsDateString()
   timestampLocal?: string;
@@ -52,6 +59,11 @@ export class SyncEventDto {
   @IsOptional()
   @IsString()
   earlyCheckoutReason?: string;
+
+  /** Permiso de ubicación reportado en el latido (para el control en servicio). */
+  @IsOptional()
+  @IsEnum(LocationPermission)
+  locationPermission?: LocationPermission;
 }
 
 /** Lote de eventos sincronizados al recuperar conexión. */

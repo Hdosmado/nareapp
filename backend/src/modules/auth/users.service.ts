@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { QueryFailedError, Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { UserRole } from '../../common/enums';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -18,8 +21,26 @@ export class UsersService {
     private readonly users: Repository<User>,
   ) {}
 
+  /**
+   * Verifica que el actor sea un ADMIN antes de tocar campos sensibles
+   * (`rol`/`estado`). El controller ya restringe el ABM a ADMIN, pero el
+   * servicio valida de forma defensiva por si se invoca desde otro lugar.
+   */
+  private assertAdmin(actor: JwtPayload | undefined): void {
+    if (actor?.type !== 'user' || actor.rol !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Solo un administrador puede asignar el rol o el estado de un usuario',
+      );
+    }
+  }
+
   /** Da de alta un usuario del panel de coordinación. */
-  async create(dto: CreateUserDto): Promise<User> {
+  async create(dto: CreateUserDto, actor?: JwtPayload): Promise<User> {
+    // El rol y el estado solo los puede definir un ADMIN.
+    if (dto.rol !== undefined || dto.estado !== undefined) {
+      this.assertAdmin(actor);
+    }
+
     const email = dto.email.toLowerCase();
     const exists = await this.users.findOne({ where: { email } });
     if (exists) {
@@ -58,8 +79,23 @@ export class UsersService {
   }
 
   /** Edita un usuario; rehashea la contraseña y valida email duplicado. */
-  async update(id: string, dto: UpdateUserDto): Promise<User> {
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    actor?: JwtPayload,
+  ): Promise<User> {
     const user = await this.findOne(id);
+
+    // Solo un ADMIN puede modificar el rol o el estado, y nadie puede editar
+    // su propio rol/estado (evita auto-promoción o auto-(des)activación).
+    if (dto.rol !== undefined || dto.estado !== undefined) {
+      this.assertAdmin(actor);
+      if (actor && actor.sub === user.id) {
+        throw new ForbiddenException(
+          'No podés modificar tu propio rol ni estado',
+        );
+      }
+    }
 
     if (dto.email) {
       const email = dto.email.toLowerCase();
@@ -91,8 +127,13 @@ export class UsersService {
   }
 
   /** Borrado físico del usuario; traduce el error de FK a ConflictException. */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor?: JwtPayload): Promise<void> {
     await this.findOne(id);
+    // Un usuario no puede eliminarse a sí mismo (evita quedarse sin admin
+    // o perder la sesión propia de forma accidental).
+    if (actor && actor.sub === id) {
+      throw new ForbiddenException('No podés eliminar tu propio usuario');
+    }
     try {
       await this.users.delete(id);
     } catch (error) {

@@ -1,1 +1,5 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
+
+// Google Maps SDK (iOS) — necesaria para el mapa embebido.
+MAPS_API_KEY = AIzaSyDWTXZMnqWRitrUlH6O3JuuK2gKwFXYF4M
