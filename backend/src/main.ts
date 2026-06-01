@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -11,16 +12,15 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   app.use(helmet());
-  app.enableCors();
-  // DEBUG temporal: traza todas las requests entrantes y su status
-  app.use((req: any, res: any, next: any) => {
-    const auth = req.headers['authorization'] ? 'Bearer ***' : 'none';
-    const dev = req.headers['x-device-id'] ?? 'none';
-    res.on('finish', () => {
-      // eslint-disable-next-line no-console
-      console.log(`[HTTP] ${req.method} ${req.originalUrl} -> ${res.statusCode} auth=${auth} device=${dev}`);
-    });
-    next();
+  app.use(cookieParser());
+  // CORS con credenciales: el panel envía la cookie HttpOnly del refresh token.
+  // Orígenes permitidos vía CORS_ORIGINS (coma-separados). Si no se define,
+  // refleja el origen del request (apto para desarrollo). No usar '*' con
+  // credenciales: por eso configuramos `origin` explícito + `credentials`.
+  const corsEnv = process.env.CORS_ORIGINS;
+  app.enableCors({
+    origin: corsEnv ? corsEnv.split(',').map((o) => o.trim()) : true,
+    credentials: true,
   });
   app.setGlobalPrefix(config.get<string>('apiPrefix', 'api'));
   app.useGlobalPipes(

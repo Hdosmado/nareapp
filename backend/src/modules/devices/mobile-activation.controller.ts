@@ -21,7 +21,15 @@ import { ClaimActivationDto } from './dto/claim-activation.dto';
 export class MobileActivationController {
   constructor(private readonly activation: DeviceActivationService) {}
 
-  /** Reclama una activación: vincula el dispositivo y abre sesión. */
+  /**
+   * Reclama una activación: vincula el dispositivo y abre sesión.
+   *
+   * Rate limiting POR IP para frenar la fuerza bruta del código de 8 dígitos.
+   * El límite sale de config (`ACTIVATION_CLAIM_RATE_LIMIT`): por defecto 5/min
+   * en producción (endurecido respecto del 30 original), configurable sin
+   * redeploy. Es la barrera complementaria al lockout por token. Un prestador
+   * legítimo activa una sola vez, así que pocas/min sobran.
+   */
   @Public()
   @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)

@@ -73,29 +73,31 @@ class _PermissionIntroScreenState
                   Text('Compartir tu ubicación', style: AppText.h1),
                   const SizedBox(height: Insets.x3),
                   Text(
-                    'Antes de cada servicio, NareApp comparte tu ubicación '
-                    'con coordinación para anticipar demoras. Queremos que '
-                    'sepas exactamente cómo funciona.',
+                    'Durante cada servicio, NareApp comparte tu ubicación con '
+                    'coordinación. Es automático: arranca unos minutos antes '
+                    'del inicio y se detiene poco después del fin. Queremos '
+                    'que sepas exactamente cómo funciona.',
                     style: AppText.body.copyWith(color: AppColors.textMuted),
                   ),
                   const SizedBox(height: Insets.x5),
                   const _Point(
                     icon: Icons.schedule_outlined,
-                    title: 'Solo antes del servicio',
-                    body: 'El GPS se activa en la ventana previa al inicio '
-                        'y se detiene cuando confirmás LLEGUÉ.',
+                    title: 'Durante el servicio',
+                    body: 'El GPS se activa solo unos minutos antes del inicio '
+                        'y se mantiene hasta poco después del fin. Fuera de ese '
+                        'rato, no se usa.',
                   ),
                   const _Point(
                     icon: Icons.notifications_none,
                     title: 'Siempre con aviso visible',
-                    body: 'Mientras se comparte la ubicación, vas a ver una '
+                    body: 'Mientras se comparte tu ubicación, vas a ver una '
                         'notificación. Nunca ocurre en silencio.',
                   ),
                   const _Point(
-                    icon: Icons.block_outlined,
-                    title: 'Nunca seguimiento permanente',
-                    body: 'Fuera de la ventana previa al servicio, la app no '
-                        'usa tu ubicación.',
+                    icon: Icons.shield_outlined,
+                    title: 'Elegí "Siempre"',
+                    body: 'Para que funcione aunque cierres la app, concedé el '
+                        'permiso de ubicación en modo "Siempre".',
                   ),
                   if (_result != null) ...[
                     const SizedBox(height: Insets.x4),
@@ -124,7 +126,7 @@ class _PermissionIntroScreenState
                               .openSettings(),
                         )
                       : PrimaryButton(
-                          label: 'Activar ubicación',
+                          label: 'Permitir "Siempre"',
                           loading: _requesting,
                           onPressed: _request,
                         ),
@@ -141,7 +143,8 @@ class _PermissionIntroScreenState
         return const NareBanner(
           tone: BannerTone.success,
           title: 'Ubicación activada',
-          body: 'Ya podés compartir tu ubicación antes de cada servicio.',
+          body: 'Tu ubicación se comparte automáticamente durante cada '
+              'servicio. No tenés que hacer nada más.',
         );
       case LocationPermissionResult.deniedForever:
         return const NareBanner(

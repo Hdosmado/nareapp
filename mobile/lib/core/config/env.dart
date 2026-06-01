@@ -10,7 +10,7 @@ class Env {
   /// URL base del backend NestJS, sin el sufijo `/api`.
   static const String backendBaseUrl = String.fromEnvironment(
     'BACKEND_URL',
-    defaultValue: 'http://192.168.1.100:3000',
+    defaultValue: 'http://192.168.1.95:3000',
   );
 
   /// URL base de la API REST (el backend monta todo bajo `/api`).

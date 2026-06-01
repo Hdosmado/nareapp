@@ -38,7 +38,7 @@ ADDR_ID=$(curl -s -X POST "$API/coordination/patients/$PAT_ID/addresses" -H "$AU
 echo "5/7  Alta del servicio (hoy)..."
 FECHA=$(date +%F)
 START=$(date -u +%FT%H:%M:%S.000Z)
-END=$(date -u -d '+4 hours' +%FT%H:%M:%S.000Z)
+END=$(python3 -c "import datetime;print((datetime.datetime.utcnow()+datetime.timedelta(hours=4)).strftime('%Y-%m-%dT%H:%M:%S.000Z'))")
 SVC_ID=$(curl -s -X POST "$API/coordination/services" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"patientId\":\"$PAT_ID\",\"addressId\":\"$ADDR_ID\",\"fecha\":\"$FECHA\",\"startTime\":\"$START\",\"endTime\":\"$END\"}" \
   | field "['id']")

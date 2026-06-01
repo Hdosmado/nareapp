@@ -2,14 +2,26 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { AuditService } from '../audit/audit.service';
 import { ServiceAssignment } from '../services/entities/service-assignment.entity';
 import { CreateAttendanceEventDto } from './dto/create-attendance-event.dto';
-import { UpdateAttendanceEventDto } from './dto/update-attendance-event.dto';
 import { AttendanceEvent } from './entities/attendance-event.entity';
 
+/** Opciones del alta manual de un evento de asistencia. */
+export interface CreateAttendanceEventOptions {
+  /** Usuario de coordinación que registra la corrección manual. */
+  creadoManualmentePorUsuarioId?: string;
+}
+
 /**
- * ABM de eventos de asistencia desde el panel de coordinación.
- * Separado de AttendanceService (app mobile) para no afectar el flujo de la app.
+ * Endpoints admin de eventos de asistencia (panel de coordinación). Separado de
+ * AttendanceService (app mobile) para no afectar el flujo de la app.
+ *
+ * El servidor es la autoridad anti-fraude: este servicio es APPEND-ONLY (sin
+ * update/remove) y, al crear, NUNCA confía en los campos anti-fraude del body
+ * (insideAllowedRadius, distanceToAddress, timestampServer). Esos los fija el
+ * servidor; el alta solo representa una corrección/excepción MANUAL que el
+ * motor de riesgo no debe tratar como prueba GPS.
  */
 @Injectable()
 export class AttendanceEventsAdminService {
@@ -18,10 +30,19 @@ export class AttendanceEventsAdminService {
     private readonly events: Repository<AttendanceEvent>,
     @InjectRepository(ServiceAssignment)
     private readonly assignments: Repository<ServiceAssignment>,
+    private readonly audit: AuditService,
   ) {}
 
-  /** Crea un evento de asistencia asociado a una asignación de servicio. */
-  async create(dto: CreateAttendanceEventDto): Promise<AttendanceEvent> {
+  /**
+   * Registra un evento de asistencia como corrección/excepción MANUAL asociada
+   * a una asignación. Los campos anti-fraude NO se aceptan del body: el server
+   * fija `timestampServer` (ahora) y no marca `insideAllowedRadius`/
+   * `distanceToAddress` (quedan nulos: sin prueba GPS de presencia).
+   */
+  async create(
+    dto: CreateAttendanceEventDto,
+    options: CreateAttendanceEventOptions = {},
+  ): Promise<AttendanceEvent> {
     const assignment = await this.assignments.findOne({
       where: { id: dto.assignmentId },
     });
@@ -35,18 +56,33 @@ export class AttendanceEventsAdminService {
       latitude: dto.latitude,
       longitude: dto.longitude,
       accuracy: dto.accuracy,
-      distanceToAddress: dto.distanceToAddress,
-      insideAllowedRadius: dto.insideAllowedRadius,
+      // Campos anti-fraude: NO se toman del body. El alta manual no es prueba
+      // GPS de presencia, así que el server no marca radio ni distancia.
+      distanceToAddress: undefined,
+      insideAllowedRadius: undefined,
       exceptionReason: dto.exceptionReason,
       earlyCheckoutReason: dto.earlyCheckoutReason ?? null,
       timestampLocal: dto.timestampLocal
         ? new Date(dto.timestampLocal)
         : undefined,
-      timestampServer: dto.timestampServer
-        ? new Date(dto.timestampServer)
-        : new Date(),
+      // El server fija el timestamp autoritativo: nunca lo decide el cliente.
+      timestampServer: new Date(),
     });
     await this.events.save(event);
+    // Traza de la corrección manual con el coordinador que la creó.
+    await this.audit.record({
+      actorType: 'user',
+      actorId: options.creadoManualmentePorUsuarioId,
+      entity: 'attendance_event',
+      entityId: event.id,
+      action: 'create_manual',
+      diff: {
+        assignmentId: dto.assignmentId,
+        type: dto.type,
+        origen: 'manual',
+        creadoManualmentePorUsuarioId: options.creadoManualmentePorUsuarioId,
+      },
+    });
     return this.findOne(event.id);
   }
 
@@ -69,44 +105,5 @@ export class AttendanceEventsAdminService {
       throw new NotFoundException('Evento de asistencia no encontrado');
     }
     return event;
-  }
-
-  /** Actualiza un evento de asistencia. */
-  async update(
-    id: string,
-    dto: UpdateAttendanceEventDto,
-  ): Promise<AttendanceEvent> {
-    const event = await this.events.findOne({ where: { id } });
-    if (!event) {
-      throw new NotFoundException('Evento de asistencia no encontrado');
-    }
-    this.events.merge(event, {
-      type: dto.type,
-      idempotencyKey: dto.idempotencyKey,
-      latitude: dto.latitude,
-      longitude: dto.longitude,
-      accuracy: dto.accuracy,
-      distanceToAddress: dto.distanceToAddress,
-      insideAllowedRadius: dto.insideAllowedRadius,
-      exceptionReason: dto.exceptionReason,
-      earlyCheckoutReason: dto.earlyCheckoutReason ?? null,
-      timestampLocal: dto.timestampLocal
-        ? new Date(dto.timestampLocal)
-        : undefined,
-      timestampServer: dto.timestampServer
-        ? new Date(dto.timestampServer)
-        : undefined,
-    });
-    await this.events.save(event);
-    return this.findOne(id);
-  }
-
-  /** Elimina físicamente un evento de asistencia. */
-  async remove(id: string): Promise<void> {
-    const event = await this.events.findOne({ where: { id } });
-    if (!event) {
-      throw new NotFoundException('Evento de asistencia no encontrado');
-    }
-    await this.events.delete(id);
   }
 }

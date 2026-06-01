@@ -56,7 +56,8 @@ export class AppConfigService implements OnModuleInit {
   /** Subconjunto de parámetros que necesita la app mobile. */
   getMobileConfig(): Record<string, number> {
     return {
-      trackingLeadMin: this.getNumber('tracking.lead_min', 45),
+      trackingLeadMin: this.getNumber('tracking.lead_min', 10),
+      trackingTrailMin: this.getNumber('tracking.trail_min', 10),
       trackingIntervalSec: this.getNumber('tracking.interval_sec', 600),
       trackingMaxWindowMin: this.getNumber('tracking.max_window_min', 90),
       geofenceRadiusM: this.getNumber('geofence.radius_m', 150),

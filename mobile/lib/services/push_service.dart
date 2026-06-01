@@ -26,6 +26,12 @@ abstract class PushService {
 
   /// Stream de tokens nuevos cuando FCM los rota.
   Stream<String> get tokenRefreshes;
+
+  /// Muestra una notificación local en el dispositivo (banner + sonido), sin
+  /// depender de FCM. Se usa para avisos generados localmente por la app, p.
+  /// ej. cuando detecta una persona a cuidar recién asignada. Best-effort: si
+  /// el permiso de notificaciones está denegado, no hace nada.
+  Future<void> showLocalAlert(String title, String body);
 }
 
 /// Implementación real basada en `firebase_messaging` + `flutter_local_notifications`.
@@ -45,6 +51,7 @@ class FirebaseMessagingPushService implements PushService {
   final FirebaseMessaging _messaging;
   final FlutterLocalNotificationsPlugin _localNotifications;
   bool _initialized = false;
+  bool _localReady = false;
 
   @override
   Future<void> init() async {
@@ -59,7 +66,29 @@ class FirebaseMessagingPushService implements PushService {
       sound: true,
     );
 
-    // Inicialización del plugin de notificaciones locales.
+    // En iOS, firebase_messaging se adueña del delegate de notificaciones y,
+    // por defecto, NO presenta banners cuando la app está en primer plano.
+    // Esto le indica explícitamente que igual muestre alert + badge + sonido
+    // en foreground (para FCM y para cualquier notificación que reciba).
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    await _ensureLocalInit();
+
+    // Mensajes recibidos con la app en foreground: FCM los entrega solo al
+    // handler (no muestra banner). Mostramos notificación local en el mismo
+    // canal para que aparezca como banner.
+    FirebaseMessaging.onMessage.listen(_showLocalNotification);
+  }
+
+  /// Inicializa el plugin de notificaciones locales (canal Android + permiso
+  /// iOS). Es idempotente e independiente de FCM, para poder mostrar avisos
+  /// locales aunque el push remoto esté deshabilitado.
+  Future<void> _ensureLocalInit() async {
+    if (_localReady) return;
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(
@@ -78,11 +107,7 @@ class FirebaseMessagingPushService implements PushService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
-
-    // Mensajes recibidos con la app en foreground: FCM los entrega solo al
-    // handler (no muestra banner). Mostramos notificación local en el mismo
-    // canal para que aparezca como banner.
-    FirebaseMessaging.onMessage.listen(_showLocalNotification);
+    _localReady = true;
   }
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
@@ -98,8 +123,13 @@ class FirebaseMessagingPushService implements PushService {
         'NareApp';
     final body = notification?.body ?? (message.data['body'] as String?) ?? '';
     if (body.isEmpty && notification == null) return;
+    await showLocalAlert(title, body);
+  }
 
+  @override
+  Future<void> showLocalAlert(String title, String body) async {
     try {
+      await _ensureLocalInit();
       await _localNotifications.show(
         DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
         title,
@@ -112,7 +142,12 @@ class FirebaseMessagingPushService implements PushService {
             importance: Importance.high,
             priority: Priority.high,
           ),
-          iOS: DarwinNotificationDetails(),
+          // En iOS, presentar el banner aunque la app esté en foreground.
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
       );
       if (kDebugMode) {
@@ -161,4 +196,7 @@ class StubPushService implements PushService {
 
   @override
   Stream<String> get tokenRefreshes => const Stream.empty();
+
+  @override
+  Future<void> showLocalAlert(String title, String body) async {}
 }

@@ -53,7 +53,9 @@ dependencies:
   uuid: ^4.5.1
 
   # Escaneo de QR (mecanismo secundario de activación).
-  mobile_scanner: ^6.0.10
+  # Deshabilitado temporalmente: GoogleMLKit no soporta arm64 en simulador iOS
+  # (Apple Silicon). La activación principal es por código de 8 dígitos.
+  # mobile_scanner: ^6.0.10
 
   # Tipografías de marca (Bricolage Grotesque, Plus Jakarta Sans, JetBrains Mono).
   google_fonts: ^6.2.1

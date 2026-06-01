@@ -49,21 +49,36 @@ export const CONFIG_DEFAULTS: ConfigDefault[] = [
   },
   {
     key: 'tracking.lead_min',
-    value: '45',
+    value: '10',
     type: 'number',
-    description: 'Minutos antes del inicio en que la app activa el tracking',
+    description:
+      'Minutos antes del inicio en que la app activa el tracking automático',
+  },
+  {
+    key: 'tracking.trail_min',
+    value: '10',
+    type: 'number',
+    description:
+      'Minutos después del fin en que la app mantiene el tracking activo',
   },
   {
     key: 'tracking.interval_sec',
     value: '600',
     type: 'number',
-    description: 'Frecuencia de muestreo de ubicación, en segundos',
+    description: 'Frecuencia del latido de ubicación, en segundos',
   },
   {
     key: 'tracking.max_window_min',
     value: '90',
     type: 'number',
     description: 'Ventana máxima de tracking previo al servicio',
+  },
+  {
+    key: 'reminder.lead_min',
+    value: '10',
+    type: 'number',
+    description:
+      'Minutos antes del inicio en que se envía el recordatorio al prestador',
   },
   {
     key: 'geofence.radius_m',

@@ -85,12 +85,15 @@ class _EndServiceSheetState extends ConsumerState<EndServiceSheet> {
     double? latitude;
     double? longitude;
     double? accuracy;
+    bool? isMocked;
     final position =
         await ref.read(locationServiceProvider).currentPosition();
     if (position != null) {
       latitude = position.latitude;
       longitude = position.longitude;
       accuracy = position.accuracy;
+      // Bandera anti-spoofing reportada al backend (no decide nada en la app).
+      isMocked = position.isMocked;
     }
 
     final rawReason = _reasonController.text.trim();
@@ -106,6 +109,7 @@ class _EndServiceSheetState extends ConsumerState<EndServiceSheet> {
       latitude: latitude,
       longitude: longitude,
       accuracy: accuracy,
+      isMocked: isMocked,
       earlyCheckoutReason: earlyReason,
     );
 

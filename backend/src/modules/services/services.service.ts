@@ -214,6 +214,18 @@ export class ServicesService {
 
     service.estado = ServiceStatus.ASIGNADO;
     await this.services.save(service);
+
+    // Avisar al prestador que tiene una nueva persona a cuidar.
+    await this.notifications.notifyProvider(
+      provider.id,
+      'nueva_asignacion',
+      {
+        assignmentId: assignment.id,
+        startTime: assignment.startTime.toISOString(),
+      },
+      assignment.id,
+    );
+
     return assignment;
   }
 
@@ -230,10 +242,6 @@ export class ServicesService {
       relations: { patient: true, address: true },
       order: { startTime: 'ASC' },
     });
-    // eslint-disable-next-line no-console
-    console.log(
-      `[DBG today] provider=${providerId} count=${result.length} range=${start.toISOString()}..${end.toISOString()} body=${JSON.stringify(result).slice(0, 500)}`,
-    );
     return result;
   }
 
@@ -255,10 +263,6 @@ export class ServicesService {
       relations: { patient: true, address: true },
       order: { startTime: 'ASC' },
     });
-    // eslint-disable-next-line no-console
-    console.log(
-      `[DBG current] provider=${providerId} body=${JSON.stringify(result).slice(0, 500)}`,
-    );
     return result;
   }
 
@@ -372,9 +376,11 @@ export class ServicesService {
       throw new NotFoundException('Asignación no encontrada');
     }
 
+    const previousStatus = assignment.status;
+    const previousProviderId = assignment.provider?.id ?? null;
+
     let providerCambio: string | null = null;
     if (dto.providerId) {
-      const previousProviderId = assignment.provider?.id ?? null;
       const provider = await this.providers.findOne({
         where: { id: dto.providerId },
       });
@@ -398,6 +404,7 @@ export class ServicesService {
     }
 
     const saved = await this.assignments.save(assignment);
+
     if (providerCambio) {
       await this.notifications.notifyProvider(
         providerCambio,
@@ -406,6 +413,21 @@ export class ServicesService {
         saved.id,
       );
     }
+
+    // Cancelación: avisar al prestador que pierde el servicio (sólo en la
+    // transición a CANCELADO, para no reenviar en updates repetidos).
+    const cancelado =
+      saved.status === AssignmentStatus.CANCELADO &&
+      previousStatus !== AssignmentStatus.CANCELADO;
+    if (cancelado && previousProviderId) {
+      await this.notifications.notifyProvider(
+        previousProviderId,
+        'asignacion_cancelada',
+        { assignmentId: saved.id },
+        saved.id,
+      );
+    }
+
     return saved;
   }
 

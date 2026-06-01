@@ -64,6 +64,9 @@ export const AlertType = [
   'bateria_baja',
   'device_no_aprobado',
   'sin_prestador',
+  'salio_durante_servicio',
+  'sin_senal_en_servicio',
+  'sin_permiso_ubicacion',
 ] as const;
 export const AlertSeverity = ['baja', 'media', 'alta', 'critica'] as const;
 export const AlertStatus = [

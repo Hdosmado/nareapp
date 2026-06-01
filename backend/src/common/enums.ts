@@ -111,6 +111,18 @@ export enum ConnectivityStatus {
   UNKNOWN = 'unknown',
 }
 
+/**
+ * Nivel de permiso de ubicación que reporta la app del prestador en cada
+ * latido. `SIEMPRE` (always + background) es el requerido para el control
+ * anti-fraude; cualquier otro durante el servicio dispara una alerta.
+ */
+export enum LocationPermission {
+  SIEMPRE = 'siempre',
+  DURANTE_USO = 'durante_uso',
+  DENEGADO = 'denegado',
+  DESCONOCIDO = 'desconocido',
+}
+
 /** Tipo de alerta operativa. */
 export enum AlertType {
   SIN_SENAL_30 = 'sin_senal_30',
@@ -122,6 +134,18 @@ export enum AlertType {
   BATERIA_BAJA = 'bateria_baja',
   DEVICE_NO_APROBADO = 'device_no_aprobado',
   SIN_PRESTADOR = 'sin_prestador',
+  // Alertas del tramo "en servicio" (tras "LLEGUÉ", hasta el fin + trail).
+  /** El prestador salió del radio del domicilio durante el servicio. */
+  SALIO_DURANTE_SERVICIO = 'salio_durante_servicio',
+  /** Sin latido de ubicación durante el servicio (señal vencida). */
+  SIN_SENAL_EN_SERVICIO = 'sin_senal_en_servicio',
+  /** El permiso de ubicación dejó de ser "Siempre" durante el servicio. */
+  SIN_PERMISO_UBICACION = 'sin_permiso_ubicacion',
+  /**
+   * La asignación quedó EN_SERVICIO pasado el fin + trail sin check-out: el
+   * prestador no cerró el servicio (posible abandono o cierre olvidado).
+   */
+  SERVICIO_SIN_CIERRE = 'servicio_sin_cierre',
 }
 
 /** Severidad de una alerta operativa. */

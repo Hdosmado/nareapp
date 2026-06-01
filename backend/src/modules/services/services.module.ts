@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PatientAddress } from '../patients/entities/patient-address.entity';
 import { Patient } from '../patients/entities/patient.entity';
 import { Provider } from '../providers/entities/provider.entity';
+import { AppConfigModule } from '../config/app-config.module';
 import { DevicesModule } from '../devices/devices.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AssignmentsController } from './assignments.controller';
@@ -24,6 +25,7 @@ import { ServicesService } from './services.service';
     ]),
     DevicesModule,
     NotificationsModule,
+    AppConfigModule,
   ],
   controllers: [
     ServicesController,
