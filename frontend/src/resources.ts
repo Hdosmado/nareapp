@@ -41,7 +41,9 @@ export type FieldType =
   | 'datetime'
   | 'boolean'
   | 'uuid'
-  | 'json';
+  | 'json'
+  /** Widget de ubicación: geocodifica la dirección y muestra un mapa con pin. */
+  | 'geocode';
 
 export interface FieldDef {
   name: string;
@@ -59,6 +61,12 @@ export interface FieldDef {
   readOnly?: boolean;
   /** El valor lo genera el panel (claves de idempotencia); no se pide. */
   autogenerate?: boolean;
+  /**
+   * El valor lo administra otro widget del formulario (ej. el selector de
+   * ubicación setea `latitude`/`longitude`): se envía en el payload pero no se
+   * dibuja como input suelto.
+   */
+  managed?: boolean;
 }
 
 export type ColumnKind =
@@ -255,8 +263,15 @@ export const RESOURCES: ResourceDef[] = [
       },
       { name: 'ciudad', label: 'Ciudad', type: 'text', required: true },
       { name: 'provincia', label: 'Provincia', type: 'text', required: true },
-      { name: 'latitude', label: 'Latitud', type: 'number' },
-      { name: 'longitude', label: 'Longitud', type: 'number' },
+      {
+        name: 'ubicacion',
+        label: 'Ubicación',
+        type: 'geocode',
+        wide: true,
+        hint: 'Se calcula sola desde la dirección. Buscá y, si hace falta, arrastrá el pin.',
+      },
+      { name: 'latitude', label: 'Latitud', type: 'number', managed: true },
+      { name: 'longitude', label: 'Longitud', type: 'number', managed: true },
       {
         name: 'allowedRadiusM',
         label: 'Radio permitido (m)',

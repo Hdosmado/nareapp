@@ -1,8 +1,9 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { ApiError, apiFetch } from '../lib/api';
 import { humanize, toDateTimeLocal, type Row } from '../lib/format';
 import { refFor, type RefDef } from '../lib/refs';
 import type { FieldDef, ResourceDef } from '../resources';
+import { AddressLocationPicker } from './AddressLocationPicker';
 import { Icon } from './Icon';
 import { JsonViewer } from './JsonViewer';
 import { Portal } from './Portal';
@@ -61,12 +62,16 @@ export function EntityFormModal({
     [resource, mode],
   );
 
-  // Campos que se muestran: se ocultan los autogenerados y los de sólo
-  // lectura al crear (no hay valor previo que consultar).
+  // Campos que se muestran: se ocultan los autogenerados, los de sólo lectura
+  // al crear (no hay valor previo que consultar) y los administrados por otro
+  // widget (ej. lat/long, que las setea el selector de ubicación).
   const visibleFields = useMemo(
     () =>
       formFields.filter(
-        (f) => !f.autogenerate && !(f.readOnly && mode === 'create'),
+        (f) =>
+          !f.autogenerate &&
+          !f.managed &&
+          !(f.readOnly && mode === 'create'),
       ),
     [formFields, mode],
   );
@@ -81,9 +86,9 @@ export function EntityFormModal({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  function set(name: string, value: unknown) {
+  const set = useCallback((name: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [name]: value }));
-  }
+  }, []);
 
   /** Arma el cuerpo de la petición; devuelve null si hay error de validación. */
   function buildPayload(): Record<string, unknown> | null {
@@ -92,6 +97,9 @@ export function EntityFormModal({
     for (const field of formFields) {
       // Los datos de sólo lectura nunca se envían desde el panel.
       if (field.readOnly) continue;
+
+      // El campo de ubicación es sólo UI: setea `latitude`/`longitude` aparte.
+      if (field.type === 'geocode') continue;
 
       // Las claves de idempotencia se generan automáticamente al crear.
       if (field.autogenerate) {
@@ -135,6 +143,21 @@ export function EntityFormModal({
         payload[field.name] = trimmed;
       }
     }
+
+    // Si el formulario usa selector de ubicación, exigimos coordenadas
+    // confirmadas: sin ellas se rompe en silencio el control de llegada y el
+    // motor de riesgo, que miden distancia desde el domicilio.
+    if (formFields.some((f) => f.type === 'geocode')) {
+      const lat = Number(payload.latitude);
+      const lng = Number(payload.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        setError(
+          'Confirmá la ubicación en el mapa (buscá la dirección o ubicá el pin) antes de guardar.',
+        );
+        return null;
+      }
+    }
+
     return payload;
   }
 
@@ -206,16 +229,24 @@ export function EntityFormModal({
           )}
 
           <div className="formgrid">
-            {visibleFields.map((field) => (
-              <FieldControl
-                key={field.name}
-                field={field}
-                mode={mode}
-                value={values[field.name]}
-                refDef={refFor(resource.key, field.name)}
-                onChange={(v) => set(field.name, v)}
-              />
-            ))}
+            {visibleFields.map((field) =>
+              field.type === 'geocode' ? (
+                <AddressLocationPicker
+                  key={field.name}
+                  values={values}
+                  set={set}
+                />
+              ) : (
+                <FieldControl
+                  key={field.name}
+                  field={field}
+                  mode={mode}
+                  value={values[field.name]}
+                  refDef={refFor(resource.key, field.name)}
+                  onChange={(v) => set(field.name, v)}
+                />
+              ),
+            )}
           </div>
         </div>
 

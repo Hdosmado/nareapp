@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { divIcon, LatLngBounds, type LatLngExpression } from 'leaflet';
+import { divIcon, LatLngBounds } from 'leaflet';
 import {
   MapContainer,
   Marker,
@@ -10,6 +10,12 @@ import {
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiFetch } from '../lib/api';
+import {
+  ARGENTINA_CENTER,
+  OSM_ATTRIBUTION,
+  OSM_TILE_URL,
+  homeIcon,
+} from '../lib/leaflet';
 import {
   formatDateTime,
   getValue,
@@ -68,9 +74,6 @@ const RISK_COLOR: Record<RiskLevel, string> = {
   naranja: '#ea580c',
   rojo: '#dc2626',
 };
-
-/** Centro de Argentina como fallback cuando no hay markers a mostrar. */
-const FALLBACK_CENTER: LatLngExpression = [-32.9468, -60.6393];
 
 /**
  * Mapa operativo del panel.
@@ -189,27 +192,6 @@ function markerIcon(risk: RiskLevel) {
   });
 }
 
-/** Marker rojo lleno para el domicilio (a diferencia del prestador, hueco). */
-function homeIcon() {
-  const html = `<span style="
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    background: #0f172a;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 1px rgba(15,23,42,0.35), 0 1px 4px rgba(0,0,0,0.35);
-    transform: rotate(45deg);
-  "></span>`;
-  return divIcon({
-    html,
-    className: '',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-    popupAnchor: [0, -10],
-  });
-}
-
 /** Lee y normaliza el riskLevel de una fila. */
 function rowRiskLevel(row: Row): RiskLevel {
   const raw = String(getValue(row, 'riskLevel') ?? 'verde').toLowerCase();
@@ -240,15 +222,12 @@ function OperationalMap({
 
       <div className="card" style={{ overflow: 'hidden' }}>
         <MapContainer
-          center={FALLBACK_CENTER}
+          center={ARGENTINA_CENTER}
           zoom={5}
           scrollWheelZoom
           style={{ height: 480, width: '100%' }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <TileLayer attribution={OSM_ATTRIBUTION} url={OSM_TILE_URL} />
           <FitBoundsToPoints points={points} />
           {points.map(({ row, loc }) => (
             <ServiceMarkers

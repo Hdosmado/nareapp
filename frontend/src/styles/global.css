@@ -980,6 +980,65 @@ textarea.field__control {
   grid-column: 1 / -1;
 }
 
+/* Selector de ubicación (geocoding + mapa) */
+.geopicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.geopicker__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.geopicker__coords {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.geopicker__label {
+  font-size: 12.5px;
+}
+.geopicker__map {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.geopicker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+}
+.geopicker__option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+.geopicker__option:hover {
+  background: var(--surface-2);
+}
+.geopicker__manual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--sp-4);
+}
+
 /* Valor de solo lectura */
 .readonly-value {
   display: flex;
