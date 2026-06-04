@@ -1,5 +1,6 @@
 import type { ColumnDef } from '../resources';
 import { formatDateTime, getValue, humanize, type Row } from '../lib/format';
+import { onActivate } from '../lib/a11y';
 import { Icon, type IconName } from './Icon';
 import { StatusChip } from './StatusChip';
 
@@ -45,6 +46,13 @@ function display(value: unknown): string {
   return String(value);
 }
 
+/** Nombre accesible de la fila: el valor legible de su primera columna. */
+function rowLabel(row: Row, columns: ColumnDef[]): string {
+  const value = columns[0] ? getValue(row, columns[0].key) : undefined;
+  if (value === null || value === undefined || value === '') return 'registro';
+  return typeof value === 'string' ? humanize(value) : String(value);
+}
+
 /**
  * Tabla genérica del backoffice. Si recibe `onEdit`/`onDelete` muestra la
  * columna de acciones; si no, es una tabla consultable (entidades inmutables).
@@ -83,7 +91,10 @@ export function DataTable({
               <tr
                 key={String(row.id ?? index)}
                 className="is-clickable"
+                tabIndex={0}
+                aria-label={`Ver detalle: ${rowLabel(row, columns)}`}
                 onClick={() => onRowClick(row)}
+                onKeyDown={onActivate(() => onRowClick(row))}
               >
                 {columns.map((c) => (
                   <td key={c.key}>{renderCell(row, c)}</td>

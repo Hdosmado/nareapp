@@ -1,7 +1,13 @@
 /* =====================================================================
    NareApp · Panel de coordinación
-   Sistema de diseño "Medical Clean": superficies claras, tinta navy,
-   acción azul, semáforo de riesgo. Tema claro y oscuro vía [data-theme].
+   Sistema de diseño "Sala de control cálida": neutros arena/crema tomados
+   del logo, tinta espresso, ACCIÓN coral terracota (la misma del logo) y
+   semáforo de riesgo. Acción y semáforo conviven en cálido: se distinguen
+   por FORMA, no por matiz — la acción es siempre un botón/enlace/foco sólido
+   en coral, y el riesgo es siempre un chip con punto + etiqueta de texto
+   (verde/amarillo/naranja/rojo), nunca un botón. La destructiva va en
+   carmesí (--danger), separada del coral de acción. Tema claro y oscuro vía
+   [data-theme].
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -48,28 +54,42 @@
 /* --- Tema claro (por defecto) --- */
 :root,
 [data-theme='light'] {
-  --bg: #eef2f7;
+  /* Neutros cálidos (familia arena/crema del logo). */
+  --bg: #f3efe8;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --surface-3: #f1f5f9;
+  --surface-2: #faf7f1;
+  --surface-3: #f1ebe1;
 
-  --ink: #0f172a;
-  --ink-soft: #475569;
-  /* slate-500: alcanza 4.5:1 sobre superficies claras (texto tenue legible) */
-  --ink-faint: #64748b;
+  --ink: #211c16;
+  --ink-soft: #5c5349;
+  /* taupe medio: alcanza 4.5:1 sobre superficies claras (texto tenue legible).
+     Espejo en JS: NEUTRAL_TONE en src/lib/risk.ts (markers y trazos de Leaflet
+     no leen variables CSS; si cambia acá, actualizar también ahí). */
+  --ink-faint: #6f6557;
   --on-primary: #ffffff;
 
-  --line: #e2e8f0;
-  --line-strong: #cbd5e1;
+  --line: #e7e0d4;
+  --line-strong: #d6cdbd;
 
-  --primary: #0369a1;
-  --primary-hover: #075985;
-  --primary-wash: #e0f2fe;
+  /* Acción = coral terracota del logo. La marca y la acción son el mismo
+     color cálido. La distinción con el semáforo no la da el matiz sino la
+     FORMA: el riesgo siempre aparece como chip con punto + etiqueta de texto
+     (nunca como botón sólido), y la acción destructiva queda en carmesí
+     (--danger), separada del coral. Verificado ≥4.5:1 en blanco y en bg. */
+  --primary: #bd4226;
+  --primary-hover: #a8381a;
+  --primary-wash: #fbe6df;
+
+  /* Alias de marca (mismo coral): para el lockup/identidad y washes. */
+  --brand: #bd4226;
+  --brand-strong: #a8381a;
+  --brand-wash: #fbe6df;
 
   --success: #16a34a;
   --success-wash: #dcfce7;
 
-  /* Semáforo de riesgo */
+  /* Semáforo de riesgo. Espejo en JS: src/lib/risk.ts (mapa y SVG no pueden
+     leer estas variables; si cambian acá, actualizar también ahí). */
   --risk-verde: #15803d;
   --risk-verde-wash: #dcfce7;
   --risk-amarillo: #a16207;
@@ -79,19 +99,27 @@
   --risk-rojo: #b91c1c;
   --risk-rojo-wash: #fee2e2;
 
-  --danger: #b91c1c;
+  /* Destructiva: rojo sangre profundo, más oscuro que el coral de acción para
+     que un botón "Eliminar" no se confunda con uno de acción. (El semáforo
+     risk-rojo conserva su propio tono, arriba.) */
+  --danger: #8f1414;
 
-  /* Sidebar (oscura en ambos temas) */
-  --sidebar-bg: #0f172a;
-  --sidebar-ink: #cbd5e1;
-  --sidebar-ink-faint: #64748b;
-  --sidebar-active: rgba(56, 189, 248, 0.16);
+  /* Sidebar (espresso cálido en ambos temas). El activo conserva el azul de
+     acción: la calidez la dan el fondo y el lockup del logo, no los estados. */
+  --sidebar-bg: #221c15;
+  --sidebar-ink: #d8cfc0;
+  --sidebar-ink-faint: #9a8f7e;
+  --sidebar-active: rgba(224, 104, 76, 0.22);
   --sidebar-hover: rgba(255, 255, 255, 0.06);
   --sidebar-line: rgba(255, 255, 255, 0.09);
 
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.18);
+  /* Velo del modal: espresso translúcido tomado del propio --ink (33,28,22),
+     no un negro azulado. La profundidad sigue siendo cálida. */
+  --overlay: rgba(33, 28, 22, 0.55);
+
+  --shadow-sm: 0 1px 2px rgba(33, 28, 22, 0.06);
+  --shadow-md: 0 4px 14px rgba(33, 28, 22, 0.09);
+  --shadow-lg: 0 18px 48px rgba(33, 28, 22, 0.20);
 
   --skeleton: linear-gradient(
     90deg,
@@ -103,22 +131,28 @@
 
 /* --- Tema oscuro --- */
 [data-theme='dark'] {
-  --bg: #0b1120;
-  --surface: #18233a;
-  --surface-2: #131d31;
-  --surface-3: #1f2c46;
+  /* Neutros cálidos en oscuro: espresso profundo, no navy. */
+  --bg: #17120c;
+  --surface: #221c14;
+  --surface-2: #1b150e;
+  --surface-3: #2c2418;
 
-  --ink: #f1f5f9;
-  --ink-soft: #94a3b8;
-  --ink-faint: #64748b;
-  --on-primary: #06121f;
+  --ink: #f5efe4;
+  --ink-soft: #b5aa97;
+  --ink-faint: #998d79;
+  /* texto oscuro sobre el coral claro del botón (acento claro en oscuro) */
+  --on-primary: #2a160d;
 
-  --line: #2c3a55;
-  --line-strong: #3b4c6b;
+  --line: #352d20;
+  --line-strong: #493e2d;
 
-  --primary: #38bdf8;
-  --primary-hover: #7dd3fc;
-  --primary-wash: rgba(56, 189, 248, 0.14);
+  --primary: #ef8266;
+  --primary-hover: #f4977c;
+  --primary-wash: rgba(239, 130, 102, 0.16);
+
+  --brand: #ef8266;
+  --brand-strong: #f4977c;
+  --brand-wash: rgba(239, 130, 102, 0.16);
 
   --success: #4ade80;
   --success-wash: rgba(74, 222, 128, 0.14);
@@ -134,12 +168,16 @@
 
   --danger: #f87171;
 
-  --sidebar-bg: #0a0f1c;
-  --sidebar-ink: #cbd5e1;
-  --sidebar-ink-faint: #64748b;
-  --sidebar-active: rgba(56, 189, 248, 0.18);
+  --sidebar-bg: #120d07;
+  --sidebar-ink: #d8cfc0;
+  --sidebar-ink-faint: #8a7f6e;
+  --sidebar-active: rgba(239, 130, 102, 0.24);
   --sidebar-hover: rgba(255, 255, 255, 0.05);
   --sidebar-line: rgba(255, 255, 255, 0.07);
+
+  /* Velo del modal en oscuro: espresso casi negro, más denso para separar el
+     diálogo del fondo ya oscuro. */
+  --overlay: rgba(8, 5, 3, 0.66);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
@@ -270,15 +308,6 @@ a {
   flex: 1;
   min-width: 0;
 }
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--primary);
-}
-
 /* ---------------------------------------------------------------------
    4. BOTONES
    --------------------------------------------------------------------- */
@@ -384,41 +413,50 @@ a {
 .sidebar__head {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: 15px;
   padding: var(--sp-4) var(--sp-4);
   border-bottom: 1px solid var(--sidebar-line);
   min-height: var(--topbar-h);
 }
+/* Logomark transparente (versión con engranaje, propia del backoffice).
+   Se asienta directo sobre el sidebar espresso / la tarjeta de login, sin
+   recuadro: las formas cálidas flotan sobre el fondo. */
 .sidebar__logo {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
-  border-radius: var(--r-sm);
-  background: var(--primary);
-  color: var(--on-primary);
-  font-family: var(--font-head);
-  font-weight: 800;
-  font-size: 17px;
+  object-fit: contain;
+  display: block;
+}
+.sidebar__logo--lg {
+  width: 48px;
+  height: 48px;
 }
 .sidebar__brand {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 .sidebar__brand b {
   font-family: var(--font-head);
   font-weight: 800;
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1.05;
   color: #fff;
   display: block;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 .sidebar__brand span {
   font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.085em;
   text-transform: uppercase;
-  color: var(--sidebar-ink-faint);
+  color: var(--sidebar-ink);
+}
+.sidebar--collapsed .sidebar__head {
+  justify-content: center;
 }
 .sidebar--collapsed .sidebar__brand {
   display: none;
@@ -842,6 +880,14 @@ tbody tr.is-clickable {
 tbody tr.is-clickable:hover {
   background: var(--surface-2);
 }
+/* Fila operable por teclado: el foco entra a la fila y se activa con Enter /
+   Espacio. El anillo va por dentro (offset negativo) para no recortarse entre
+   celdas ni desbordar la tarjeta de la tabla. */
+tbody tr.is-clickable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background: var(--surface-2);
+}
 tbody tr:last-child td {
   border-bottom: none;
 }
@@ -1058,6 +1104,17 @@ textarea.field__control {
   flex-shrink: 0;
 }
 
+/* Campo calculado automáticamente: dato de sólo lectura (no editable acá). */
+.managed {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 6px 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
 /* Visor JSON */
 .jsonview {
   margin: 0;
@@ -1136,11 +1193,16 @@ textarea.field__control {
   border-radius: var(--r-sm);
   box-shadow: var(--shadow-md);
   padding: 4px;
+  list-style: none;
 }
 /* Variante porteada a <body>: posición fija calculada en JS; debe quedar por
    encima del overlay del modal y nunca recortada por su `overflow`. */
 .combo__menu--floating {
   right: auto;
+  /* El anclaje real (top o bottom) lo fija el JS por estilo inline. Se anula
+     el `top: calc(100% + 4px)` heredado de `.combo__menu`: si quedara activo al
+     abrir hacia arriba (sólo bottom), el menú colapsaría fuera de pantalla. */
+  top: auto;
   z-index: var(--z-popover);
 }
 .combo__opt {
@@ -1181,7 +1243,7 @@ textarea.field__control {
   display: grid;
   place-items: center;
   padding: var(--sp-5);
-  background: rgba(8, 12, 22, 0.55);
+  background: var(--overlay);
   backdrop-filter: blur(2px);
   animation: fade var(--t-fast) both;
 }
@@ -1215,6 +1277,13 @@ textarea.field__control {
   font-family: var(--font-head);
   font-weight: 700;
   font-size: 18px;
+}
+/* Contexto del modal bajo el título: qué servicio, inmutabilidad, etc. No es
+   un kicker decorativo; lleva información y va en tinta tenue, no en coral. */
+.modal__subtitle {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
 }
 .modal__body {
   padding: var(--sp-5);
@@ -1458,6 +1527,9 @@ textarea.field__control {
   flex-wrap: wrap;
 }
 .chipfilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
@@ -1480,6 +1552,331 @@ textarea.field__control {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--on-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Pantalla de Servicios: alcance, filtros de señal y celdas densas
+   --------------------------------------------------------------------- */
+.svc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+.svc-toolbar .search {
+  flex: 1 1 280px;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.segmented__btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast),
+    box-shadow var(--t-fast);
+}
+.segmented__btn:hover {
+  color: var(--ink);
+}
+.segmented__btn.is-active {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.svc-signals {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin: var(--sp-3) 0 var(--sp-4);
+}
+.svc-signals__group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.svc-signals__group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.svc-signals__group .field__control {
+  width: auto;
+  min-width: 132px;
+}
+
+.cell-sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+.cell-sub.mono {
+  font-family: var(--font-mono);
+}
+
+.svc-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.badge-signal {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  color: var(--risk-naranja);
+  background: var(--risk-naranja-wash);
+}
+
+/* ---------------------------------------------------------------------
+   Sección dentro de un modal (domicilios de la persona a cuidar)
+   --------------------------------------------------------------------- */
+.modal__section {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.modal__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.addrlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.addrlist__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.addrlist__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.addrlist__main b {
+  color: var(--ink);
+}
+.addrlist__main span {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.addrlist__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 12px;
+}
+.addrform {
+  margin-top: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.addrform__head {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  margin-bottom: var(--sp-3);
+}
+.addrform__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+/* Relación dependiente sin la dependencia elegida. */
+.combo__field.is-disabled {
+  background: var(--surface-3);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------------
+   Selector de fecha y hora (DateTimePicker)
+   --------------------------------------------------------------------- */
+.dtp {
+  position: relative;
+}
+.dtp__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.dtp__trigger.is-open {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-wash);
+}
+.dtp__lead {
+  color: var(--ink-faint);
+  flex: none;
+}
+.dtp__caret {
+  margin-left: auto;
+  flex: none;
+}
+
+.dtp__pop {
+  z-index: var(--z-popover);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(33, 28, 22, 0.09)),
+    0 18px 48px rgba(33, 28, 22, 0.2);
+  padding: var(--sp-3);
+  animation: dtp-in 130ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dtp-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dtp__pop {
+    animation: none;
+  }
+}
+
+.dtp__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.dtp__month {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  text-transform: capitalize;
+}
+.dtp__dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
+}
+.dtp__dow span {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 4px 0;
+}
+.dtp__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.dtp__day {
+  aspect-ratio: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.dtp__day:hover {
+  background: var(--surface-3);
+}
+.dtp__day.is-today {
+  border-color: var(--line-strong);
+  font-weight: 700;
+}
+.dtp__day.is-selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+.dtp__day.is-selected:hover {
+  background: var(--primary-hover);
+}
+
+.dtp__time {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.dtp__time-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.dtp__time-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.dtp__time-controls .field__control {
+  width: auto;
+  min-width: 64px;
+  font-family: var(--font-mono);
+}
+.dtp__colon {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.dtp__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+}
+.dtp__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
 }
 
 .pager {
@@ -1566,11 +1963,14 @@ textarea.field__control {
   display: grid;
   place-items: center;
   padding: var(--sp-5);
+  /* Glow de marca cálido (coral) arriba a la derecha; lavado azul de acción
+     abajo a la izquierda. La identidad entra por el fondo, no por los estados. */
   background: radial-gradient(
-      1100px 600px at 80% -10%,
-      var(--primary-wash),
-      transparent
+      1100px 620px at 82% -12%,
+      var(--brand-wash),
+      transparent 60%
     ),
+    radial-gradient(900px 520px at 8% 110%, var(--primary-wash), transparent 55%),
     var(--bg);
 }
 .login__card {
@@ -1595,6 +1995,18 @@ textarea.field__control {
 .login__sub {
   color: var(--ink-soft);
   margin: var(--sp-1) 0 var(--sp-5);
+}
+/* Sublabel del lockup de marca (junto al logo), gemelo del subtítulo del
+   sidebar. Etiqueta corta en mono, tinta tenue: identidad, no acción. El coral
+   queda reservado para lo accionable (Regla de la Voz Única). */
+.login__tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 1px;
 }
 
 /* ---------------------------------------------------------------------
@@ -1810,6 +2222,159 @@ textarea.field__control {
   color: var(--ink-soft);
 }
 
+/* Hito clickeable: abre el detalle legible del evento (mapa + resumen). */
+.timeline__item--clickable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  margin: 0 0 var(--sp-2) calc(-1 * var(--sp-2));
+  padding: var(--sp-2) var(--sp-2) var(--sp-3) var(--sp-2);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.timeline__item--clickable:last-child {
+  margin-bottom: 0;
+}
+.timeline__item--clickable:hover {
+  background: var(--surface-3);
+  border-color: var(--line);
+}
+.timeline__item--clickable .timeline__dot {
+  left: calc(-1 * var(--sp-5) + var(--sp-2) + 1px);
+}
+.timeline__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: var(--sp-1);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--primary);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.timeline__item--clickable:hover .timeline__more,
+.timeline__item--clickable:focus-visible .timeline__more {
+  opacity: 1;
+}
+
+/* Detalle de un evento de campo: encabezado con hora + estado. */
+.evlead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.evlead__when {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.evlead__time {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.evlead__caption {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+/* Resumen operativo: filas ícono + valor protagonista + dimensión. */
+.evrows {
+  display: grid;
+  gap: var(--sp-2);
+}
+.evrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.evrow__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--ink-soft);
+}
+.evrow__meta {
+  min-width: 0;
+}
+.evrow__meta b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.evrow__meta span {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* Mini-mapa del evento. */
+.evmap {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.evmap .leaflet-container {
+  border-bottom: 1px solid var(--line);
+}
+.evmap__caption {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--surface-2);
+}
+
+/* Bloque técnico colapsable (coordenadas, claves, IDs): auditoría, no foco. */
+.evtech {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.evtech > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+.evtech > summary::-webkit-details-marker {
+  display: none;
+}
+.evtech__chev {
+  transition: transform var(--t-fast);
+}
+.evtech[open] .evtech__chev {
+  transform: rotate(180deg);
+}
+.evtech__body {
+  padding: 0 var(--sp-4) var(--sp-4) var(--sp-4);
+}
+
 /* ---------------------------------------------------------------------
    20. ANIMACIONES
    --------------------------------------------------------------------- */
@@ -1910,6 +2475,30 @@ textarea.field__control {
   }
 }
 
+/* Puntero grueso (táctil / lápiz): los controles de ícono crecen al objetivo
+   táctil de 44px y las acciones de fila ganan separación, para que se puedan
+   tocar sin error. Se detecta el método de entrada, no el ancho: en escritorio
+   con mouse (puntero fino) la densidad del panel queda intacta. Un equipo con
+   pantalla táctil recibe los targets grandes aunque tenga monitor amplio. */
+@media (pointer: coarse) {
+  .btn--icon,
+  .btn--icon.btn--sm {
+    min-height: 44px;
+    width: 44px;
+  }
+  .iconbtn {
+    width: 44px;
+    height: 44px;
+  }
+  .btn--sm {
+    min-height: 44px;
+  }
+  /* Más aire entre editar / eliminar / dispositivo para no encadenar toques. */
+  .rowactions {
+    gap: var(--sp-2);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1987,4 +2576,442 @@ textarea.field__control {
   height: 420px;
   border-radius: var(--r-md);
   overflow: hidden;
+}
+
+/* Etiqueta de identidad sobre un marker del mapa (tooltip permanente de Leaflet
+   reestilado): punto de riesgo + apellido del prestador → persona a cuidar.
+   Colores FIJOS claros, no tokens de tema: el mapa usa tiles claros en ambos
+   temas, así que la etiqueta debe quedar legible sobre claro siempre (mismo
+   criterio que el aro blanco de los markers). */
+.leaflet-tooltip.maplabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(33, 28, 22, 0.18);
+  border-radius: var(--r-pill);
+  box-shadow: 0 1px 4px rgba(33, 28, 22, 0.28);
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: #211c16;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Sin la flecha que Leaflet dibuja por defecto hacia el marker. */
+.leaflet-tooltip.maplabel::before {
+  display: none;
+}
+.maplabel__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.9);
+}
+.maplabel__to {
+  font-weight: 500;
+  color: #6f6557;
+}
+/* Variante de ancla del domicilio: tenue, con marca de rombo (no compite con
+   la etiqueta viva del prestador). */
+.maplabel--home {
+  color: #5c5349;
+  font-weight: 500;
+}
+.maplabel__home {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  background: #211c16;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+/* Señal de proximidad en el popup del prestador: punto de color + texto. Color
+   de tinta fijo: el popup de Leaflet es claro en ambos temas. */
+.map-signal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 5px;
+  font-weight: 700;
+  color: #211c16;
+}
+.map-signal__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+
+/* ---------------------------------------------------------------------
+   23. ALERTAS OPERATIVAS: LISTA DE TRIAGE
+   --------------------------------------------------------------------- */
+
+/* Resumen de conteos por severidad, arriba de la lista. */
+.alert-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.alert-summary__count {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 14px;
+}
+.alert-summary__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line-strong);
+}
+
+/* Chip de filtro por tipo de alerta: lleva su conteo embebido. */
+.chipfilter__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  padding: 0 5px;
+  margin-left: 2px;
+  font-size: 10px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* Celda de tipo de alerta: título más eventual chip de estado de gestión. */
+.alert-cell__type {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* Teléfono como enlace de llamada dentro de una celda densa de tabla. */
+.cell-tel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--primary);
+  border-radius: var(--r-sm);
+}
+.cell-tel:hover {
+  text-decoration: underline;
+}
+.cell-tel:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Tono neutro del punto: acciones de rutina, sin carga de riesgo. */
+.semaforo--neutral {
+  --semaforo-ink: var(--ink-faint);
+  --semaforo-wash: var(--surface-3);
+}
+
+/* ---------------------------------------------------------------------
+   24. ACCIONES DE COORDINACIÓN: BITÁCORA DE RENDICIÓN DE CUENTAS
+   --------------------------------------------------------------------- */
+
+/* Barra de filtros: coordinador, tipo de acción y búsqueda de texto. */
+.bitacora-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+.bitacora-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.bitacora-filters__field label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+.bitacora-filters__field .field__control {
+  width: auto;
+  min-width: 168px;
+}
+.bitacora-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1 1 240px;
+  min-width: 200px;
+  height: 38px;
+  padding: 0 var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--ink-faint);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.bitacora-search:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-wash);
+}
+.bitacora-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+.bitacora-search input::placeholder {
+  color: var(--ink-faint);
+}
+.bitacora-search input:focus {
+  outline: none;
+}
+
+/* Encabezado de cada día: «Hoy / Ayer / fecha», una regla y el conteo. */
+.bitacora-day {
+  margin-bottom: var(--sp-5);
+}
+.bitacora-day__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.bitacora-day__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.bitacora-day__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.bitacora-day__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--surface-3);
+  border-radius: var(--r-pill);
+}
+
+/* Lista de entradas del día, hilvanadas por un timeline vertical. */
+.bitacora-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Una entrada: punto en el timeline + cuerpo con qué/quién/sobre-qué. */
+.logentry {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  column-gap: var(--sp-3);
+  align-items: stretch;
+  animation: rise var(--t-mid) both;
+}
+.logentry__lead {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 5px;
+}
+/* El hilo del registro conecta cada punto con el siguiente del mismo día.
+   La columna ocupa todo el alto de la entrada, así la línea llega al próximo
+   punto; en la última del día no se dibuja, para no cruzar el separador. */
+.logentry:not(:last-child) .logentry__lead::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 18px;
+  bottom: calc((var(--sp-4) + 8px) * -1);
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--line);
+}
+.logentry__lead .semaforo__dot {
+  position: relative;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 0 3px var(--surface),
+    0 0 0 5px var(--semaforo-wash, transparent);
+}
+
+.logentry__body {
+  min-width: 0;
+  padding-bottom: var(--sp-1);
+}
+.logentry__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.logentry__action {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--ink);
+}
+.logentry__time {
+  flex: none;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.logentry__by {
+  margin-top: 3px;
+  font-size: 13px;
+}
+.logentry__coord {
+  font-weight: 600;
+  color: var(--ink);
+}
+.logentry__coord--missing {
+  font-weight: 500;
+  font-style: italic;
+  color: var(--ink-faint);
+}
+.logentry__role {
+  color: var(--ink-faint);
+}
+
+/* Datos del servicio: prestador, persona a cuidar y horario, en línea. */
+.logentry__service {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  margin-top: var(--sp-3);
+}
+.logentry__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.logentry__factlabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.logentry__factval {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.logentry__date {
+  color: var(--ink-faint);
+}
+.logentry__missing {
+  font-weight: 500;
+  font-style: italic;
+  color: var(--ink-faint);
+}
+/* Reemplazo: prestador saliente, flecha, prestador entrante. */
+.logentry__swap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.logentry__swap svg {
+  color: var(--ink-faint);
+  flex: none;
+}
+.logentry__swap-from {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+
+/* Nota asociada, legible y acotada. */
+.logentry__note {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: 9px var(--sp-3);
+  max-width: 64ch;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+.logentry__note svg {
+  flex: none;
+  color: var(--ink-faint);
+  transform: translateY(1px);
+}
+
+/* Acceso directo a la ficha: la única voz de acción de la entrada. */
+.logentry__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--sp-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  border-radius: var(--r-sm);
+}
+.logentry__link svg {
+  transition: transform var(--t-fast);
+}
+.logentry__link:hover svg {
+  transform: translateX(3px);
+}
+.logentry__link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.logentry--skeleton {
+  animation: none;
+}
+
+/* Teléfonos: la hora pasa debajo del título y los datos se apilan. */
+@media (max-width: 560px) {
+  .logentry__top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .logentry__service {
+    gap: var(--sp-3);
+  }
 }

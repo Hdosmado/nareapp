@@ -38,13 +38,24 @@ export function RelationSelect({
   refDef,
   value,
   onChange,
+  dependencyValue,
+  excludeId,
 }: {
   id: string;
   refDef: RefDef;
   value: string;
   onChange: (value: string) => void;
+  /** Valor del campo del que depende esta relación (ver `RefDef.dependsOn`). */
+  dependencyValue?: string;
+  /**
+   * Id que se omite de las opciones (ej. al reasignar, no ofrecer el mismo
+   * prestador que se está reemplazando).
+   */
+  excludeId?: string;
 }) {
   const target = resourceByKey(refDef.resource);
+  const scoped = Boolean(refDef.dependsOn);
+  const depReady = !scoped || Boolean(dependencyValue);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -54,15 +65,39 @@ export function RelationSelect({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['relation-options', refDef.resource],
-    queryFn: () =>
-      apiFetch<Row[]>(
+    queryKey: scoped
+      ? ['relation-options', refDef.resource, 'scoped', dependencyValue ?? '']
+      : ['relation-options', refDef.resource],
+    queryFn: () => {
+      if (scoped) {
+        return apiFetch<Row>(refDef.scopedPath!(dependencyValue!)).then(
+          (res) =>
+            ((res?.[refDef.scopedOptionsKey!] as Row[] | undefined) ?? []),
+        );
+      }
+      return apiFetch<Row[]>(
         `${target?.path ?? ''}?page=1&limit=${RELATION_PAGE_SIZE}`,
-      ),
-    enabled: Boolean(target),
+      );
+    },
+    enabled: Boolean(target) && depReady,
   });
 
-  const options = useMemo(() => data ?? [], [data]);
+  const options = useMemo(
+    () =>
+      (data ?? []).filter(
+        (row) => !excludeId || String(row.id) !== excludeId,
+      ),
+    [data, excludeId],
+  );
+
+  // Si la dependencia cambió y el valor elegido ya no pertenece a las opciones
+  // acotadas (ej. cambiaste de persona a cuidar), se limpia la selección.
+  useEffect(() => {
+    if (!scoped || !value || data === undefined) return;
+    if (!options.some((row) => String(row.id) === value)) {
+      onChange('');
+    }
+  }, [scoped, value, data, options, onChange]);
 
   const selected = useMemo(
     () => options.find((row) => String(row.id) === value),
@@ -86,22 +121,30 @@ export function RelationSelect({
     if (!field) return;
     const rect = field.getBoundingClientRect();
     const gap = 4;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const dropUp = spaceBelow < 220 && spaceAbove > spaceBelow;
-    const maxHeight = Math.max(
-      120,
-      Math.min(240, (dropUp ? spaceAbove : spaceBelow) - gap - 8),
-    );
-    setMenuStyle({
-      position: 'fixed',
+    const margin = 8;
+    const vh = window.innerHeight;
+    const spaceBelow = vh - rect.bottom - gap - margin;
+    const spaceAbove = rect.top - gap - margin;
+    // Se abre HACIA ABAJO por defecto (es lo natural). Sólo se invierte cuando
+    // abajo casi no entra ni una opción y arriba hay claramente más lugar.
+    const dropUp = spaceBelow < 64 && spaceAbove > spaceBelow;
+    // El alto se acota al lugar disponible para no salirse del viewport; si hay
+    // más opciones que el alto, el menú scrollea internamente.
+    const maxHeight = Math.min(300, Math.max(64, dropUp ? spaceAbove : spaceBelow));
+    const base = {
+      position: 'fixed' as const,
       left: rect.left,
       width: rect.width,
       maxHeight,
-      ...(dropUp
-        ? { bottom: window.innerHeight - rect.top + gap }
-        : { top: rect.bottom + gap }),
-    });
+    };
+    // Es obligatorio fijar explícitamente el anclaje no usado en `auto`: la
+    // clase base `.combo__menu` trae `top: calc(100% + 4px)` y, al anclar por
+    // `bottom`, ese `top` heredado quedaría activo y colapsaría el menú.
+    setMenuStyle(
+      dropUp
+        ? { ...base, top: 'auto', bottom: vh - rect.top + gap }
+        : { ...base, bottom: 'auto', top: rect.bottom + gap },
+    );
   }, []);
 
   // Recalcula la posición al abrir y la mantiene al hacer scroll/resize
@@ -112,11 +155,29 @@ export function RelationSelect({
       return;
     }
     place();
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
+
+    // El scroll y el resize pueden dispararse muchas veces por frame (sobre
+    // todo el scroll del cuerpo del modal en fase de captura). Se coalescen en
+    // un único recálculo por frame con requestAnimationFrame: en lugar de un
+    // `getBoundingClientRect` + setState por evento, a lo sumo uno por frame.
+    let frame = 0;
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        place();
+      });
+    };
+    // Re-medir en el próximo frame: al abrir, el `autoFocus` del input puede
+    // desplazar el scroll y mover el campo; sin esto el menú queda posicionado
+    // contra una geometría vieja (a veces fuera de pantalla).
+    schedule();
+    window.addEventListener('resize', schedule);
+    window.addEventListener('scroll', schedule, true);
     return () => {
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule, true);
     };
   }, [open, place]);
 
@@ -160,6 +221,39 @@ export function RelationSelect({
     ? relationLabel(selected, refDef.labelKeys)
     : '';
 
+  // Identificadores para enlazar el input (combobox) con su lista de opciones
+  // y con la opción activa, de modo que un lector de pantalla anuncie el
+  // resaltado al navegar con las flechas (patrón ARIA combobox).
+  const listboxId = `${id}-listbox`;
+  const optionId = (index: number) => `${id}-opt-${index}`;
+  const activeOptionId =
+    open && filtered.length > 0 && filtered[active]
+      ? optionId(active)
+      : undefined;
+
+  // Mantiene la opción resaltada a la vista al recorrer con el teclado: con el
+  // tope de 100 registros, sin esto el resaltado se iría fuera del menú.
+  useEffect(() => {
+    if (!open) return;
+    const node = menuRef.current?.querySelector<HTMLElement>(
+      `[data-opt="${active}"]`,
+    );
+    node?.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
+
+  // Relación dependiente sin la dependencia elegida: campo deshabilitado.
+  if (scoped && !depReady) {
+    return (
+      <div className="combo">
+        <div className="combo__field is-disabled" aria-disabled="true">
+          <span className="combo__current faint">
+            Elegí primero la persona a cuidar
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="combo" ref={boxRef}>
       <div
@@ -174,6 +268,14 @@ export function RelationSelect({
           <input
             id={id}
             autoFocus
+            // El nombre accesible lo aporta el <label htmlFor={id}> externo;
+            // acá sólo declaramos la semántica de combobox y su estado.
+            role="combobox"
+            aria-expanded
+            aria-controls={listboxId}
+            aria-haspopup="listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={activeOptionId}
             value={query}
             placeholder={
               currentLabel || `Buscar ${target?.singular ?? 'registro'}…`
@@ -190,6 +292,8 @@ export function RelationSelect({
             id={id}
             tabIndex={0}
             role="button"
+            aria-haspopup="listbox"
+            aria-expanded={false}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -222,8 +326,10 @@ export function RelationSelect({
         <Portal>
           <div
             ref={menuRef}
+            id={listboxId}
             className="combo__menu combo__menu--floating"
             role="listbox"
+            aria-label={`Opciones de ${target?.singular ?? 'registro'}`}
             style={menuStyle}
           >
             {isLoading && <div className="combo__msg">Cargando opciones…</div>}
@@ -249,6 +355,8 @@ export function RelationSelect({
             {filtered.map((row, i) => (
               <div
                 key={String(row.id)}
+                id={optionId(i)}
+                data-opt={i}
                 role="option"
                 aria-selected={String(row.id) === value}
                 className={`combo__opt${i === active ? ' is-active' : ''}`}

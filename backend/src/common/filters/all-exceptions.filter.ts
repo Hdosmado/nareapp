@@ -9,6 +9,21 @@ import {
 import { Request, Response } from 'express';
 
 /**
+ * Extrae el mensaje legible de un `HttpException`. El detalle útil (por
+ * ejemplo, qué propiedad rechazó el `ValidationPipe`) vive en el cuerpo que
+ * devuelve `getResponse()`, no en `.message` (que para validación es el
+ * genérico "Bad Request Exception"). Se prioriza ese detalle.
+ */
+function httpExceptionMessage(exception: HttpException): string {
+  const res = exception.getResponse();
+  if (typeof res === 'string') return res;
+  const detail = (res as { message?: unknown }).message;
+  if (Array.isArray(detail)) return detail.join('; ');
+  if (typeof detail === 'string') return detail;
+  return exception.message;
+}
+
+/**
  * Filtro global de excepciones. Devuelve un cuerpo de error uniforme y aplica
  * logging estructurado:
  * - errores de cliente (4xx) -> logger.warn
@@ -28,7 +43,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ? exception.getStatus()
       : HttpStatus.INTERNAL_SERVER_ERROR;
     const message = isHttp
-      ? exception.message
+      ? httpExceptionMessage(exception)
       : 'Error interno del servidor';
 
     const line = `${request.method} ${request.url} -> ${statusCode}: ${message}`;

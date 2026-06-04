@@ -4,10 +4,17 @@ import { humanize, toDateTimeLocal, type Row } from '../lib/format';
 import { refFor, type RefDef } from '../lib/refs';
 import type { FieldDef, ResourceDef } from '../resources';
 import { AddressLocationPicker } from './AddressLocationPicker';
+import { buildAddressPayload, type AddressPayload } from './AddressFields';
+import { DateTimePicker } from './DateTimePicker';
+import {
+  PatientAddressDraft,
+  PatientAddressList,
+} from './PatientAddressesSection';
 import { Icon } from './Icon';
 import { JsonViewer } from './JsonViewer';
-import { Portal } from './Portal';
+import { Modal } from './Modal';
 import { RelationSelect } from './RelationSelect';
+import { StatusChip } from './StatusChip';
 
 type Mode = 'create' | 'edit';
 
@@ -86,6 +93,13 @@ export function EntityFormModal({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Domicilio opcional del alta de una persona a cuidar (se guarda tras crearla).
+  const [addressDraft, setAddressDraft] = useState<Record<string, unknown>>({});
+  const setAddressDraftField = useCallback((name: string, value: unknown) => {
+    setAddressDraft((prev) => ({ ...prev, [name]: value }));
+  }, []);
+  const isPatients = resource.key === 'patients';
+
   const set = useCallback((name: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [name]: value }));
   }, []);
@@ -97,6 +111,10 @@ export function EntityFormModal({
     for (const field of formFields) {
       // Los datos de sólo lectura nunca se envían desde el panel.
       if (field.readOnly) continue;
+
+      // El selector de prestador no pertenece al servicio: crea la asignación
+      // aparte (ver `onSubmit`). No viaja en el payload del recurso.
+      if (field.assignmentCompanion) continue;
 
       // El campo de ubicación es sólo UI: setea `latitude`/`longitude` aparte.
       if (field.type === 'geocode') continue;
@@ -167,13 +185,78 @@ export function EntityFormModal({
     const payload = buildPayload();
     if (!payload) return;
 
+    // Prestador a asignar tras crear el servicio (campo companion, opcional).
+    const companion = formFields.find((f) => f.assignmentCompanion);
+    const companionProviderId = companion
+      ? String(values[companion.name] ?? '').trim()
+      : '';
+
+    // Domicilio opcional del alta de persona: se valida antes de crear (para no
+    // crear la persona y fallar después).
+    let addressPayload: AddressPayload | null = null;
+    if (isPatients && mode === 'create') {
+      const result = buildAddressPayload(addressDraft, { optional: true });
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      addressPayload = result.payload ?? null;
+    }
+
     setBusy(true);
     try {
       if (mode === 'create') {
-        await apiFetch(resource.path, {
+        const created = await apiFetch<Row>(resource.path, {
           method: 'POST',
           body: JSON.stringify(payload),
         });
+
+        // Si se eligió prestador, se crea la asignación operativa por detrás.
+        // El servicio ya quedó creado: si la asignación falla, no se reintenta
+        // el alta (evita duplicar el servicio); se avisa para asignar luego
+        // desde la ficha.
+        if (companionProviderId) {
+          try {
+            await apiFetch('/coordination/assignments', {
+              method: 'POST',
+              body: JSON.stringify({
+                serviceId: String(created.id),
+                providerId: companionProviderId,
+              }),
+            });
+            onSaved('Servicio creado y prestador asignado.');
+          } catch (assignErr) {
+            onSaved(
+              `Servicio creado. No se pudo asignar el prestador (${
+                assignErr instanceof ApiError
+                  ? assignErr.message
+                  : 'error inesperado'
+              }); asignalo desde la ficha del servicio.`,
+            );
+          }
+          return;
+        }
+
+        // Domicilio opcional de la persona recién creada.
+        if (addressPayload) {
+          try {
+            await apiFetch(`/coordination/patients/${String(created.id)}/addresses`, {
+              method: 'POST',
+              body: JSON.stringify(addressPayload),
+            });
+            onSaved('Persona a cuidar y domicilio creados.');
+          } catch (addrErr) {
+            onSaved(
+              `Persona creada. No se pudo guardar el domicilio (${
+                addrErr instanceof ApiError
+                  ? addrErr.message
+                  : 'error inesperado'
+              }); agregalo editando la persona.`,
+            );
+          }
+          return;
+        }
+
         onSaved(`${capitalize(resource.singular)} creado correctamente.`);
       } else {
         await apiFetch(`${resource.path}/${String(source?.id)}`, {
@@ -191,21 +274,13 @@ export function EntityFormModal({
   }
 
   return (
-    <Portal>
-      <div className="overlay" onClick={onClose}>
-        <form
-          className="modal"
-          onClick={(e) => e.stopPropagation()}
-          onSubmit={onSubmit}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${mode === 'create' ? 'Nuevo' : 'Editar'} ${resource.singular}`}
-        >
+    <Modal
+      onClose={onClose}
+      onSubmit={onSubmit}
+      label={`${mode === 'create' ? 'Nuevo' : 'Editar'} ${resource.singular}`}
+    >
         <div className="modal__head">
           <div>
-            <div className="eyebrow">
-              {mode === 'create' ? 'Alta de registro' : 'Edición de registro'}
-            </div>
             <div className="modal__title">
               {mode === 'create' ? 'Nuevo' : 'Editar'} {resource.singular}
             </div>
@@ -237,17 +312,38 @@ export function EntityFormModal({
                   set={set}
                 />
               ) : (
-                <FieldControl
-                  key={field.name}
-                  field={field}
-                  mode={mode}
-                  value={values[field.name]}
-                  refDef={refFor(resource.key, field.name)}
-                  onChange={(v) => set(field.name, v)}
-                />
+                (() => {
+                  const fieldRef = refFor(resource.key, field.name);
+                  return (
+                    <FieldControl
+                      key={field.name}
+                      field={field}
+                      mode={mode}
+                      value={values[field.name]}
+                      refDef={fieldRef}
+                      dependencyValue={
+                        fieldRef?.dependsOn
+                          ? String(values[fieldRef.dependsOn] ?? '')
+                          : undefined
+                      }
+                      onChange={(v) => set(field.name, v)}
+                    />
+                  );
+                })()
               ),
             )}
           </div>
+
+          {/* Domicilios como subtabla de la persona a cuidar. */}
+          {isPatients && mode === 'edit' && Boolean(source?.id) && (
+            <PatientAddressList patientId={String(source?.id)} />
+          )}
+          {isPatients && mode === 'create' && (
+            <PatientAddressDraft
+              draft={addressDraft}
+              set={setAddressDraftField}
+            />
+          )}
         </div>
 
         <div className="modal__foot">
@@ -264,9 +360,7 @@ export function EntityFormModal({
             {busy ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
-        </form>
-      </div>
-    </Portal>
+    </Modal>
   );
 }
 
@@ -276,12 +370,14 @@ function FieldControl({
   mode,
   value,
   refDef,
+  dependencyValue,
   onChange,
 }: {
   field: FieldDef;
   mode: Mode;
   value: unknown;
   refDef: RefDef | undefined;
+  dependencyValue?: string;
   onChange: (value: unknown) => void;
 }) {
   const wide = field.wide || field.type === 'textarea' || field.type === 'json';
@@ -295,7 +391,19 @@ function FieldControl({
         {field.label} {required && <b>*</b>}
       </label>
 
-      {field.readOnly ? (
+      {field.systemManaged ? (
+        <div className="managed">
+          {field.type === 'boolean' ? (
+            <span className={value ? 'chip chip--naranja' : 'chip chip--neutral'}>
+              {value ? 'Sí' : 'No'}
+            </span>
+          ) : field.type === 'select' ? (
+            <StatusChip value={value} />
+          ) : (
+            str || <span className="faint">— sin dato —</span>
+          )}
+        </div>
+      ) : field.readOnly ? (
         field.type === 'json' ? (
           <JsonViewer value={value} />
         ) : (
@@ -310,7 +418,10 @@ function FieldControl({
           refDef={refDef}
           value={str}
           onChange={onChange}
+          dependencyValue={dependencyValue}
         />
+      ) : field.type === 'datetime' ? (
+        <DateTimePicker id={fieldId} value={str} onChange={onChange} />
       ) : field.type === 'select' ? (
         <select
           id={fieldId}

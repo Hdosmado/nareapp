@@ -10,6 +10,7 @@ import '../../../state/assignments_controller.dart';
 import '../../../state/sync_controller.dart';
 import '../../../state/tracking_controller.dart';
 import '../../widgets/banner.dart';
+import '../../widgets/brand_mark.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/nare_bottom_sheet.dart';
 import '../../widgets/section_header.dart';
@@ -36,6 +37,7 @@ class TodayScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: NareTopBar(
+        leading: const BrandMark(size: 30),
         title: 'Servicio actual',
         action: _SyncDot(online: sync.isOnline, syncing: sync.isSyncing),
       ),

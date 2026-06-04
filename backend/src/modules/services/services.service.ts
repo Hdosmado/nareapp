@@ -9,6 +9,8 @@ import { QueryFailedError } from 'typeorm';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AssignmentStatus, RiskLevel, ServiceStatus } from '../../common/enums';
 import { ARGENTINA_TZ, argentinaDayRangeUtc } from '../../common/timezone.util';
+import { AttendanceEvent } from '../attendance/entities/attendance-event.entity';
+import { PreServiceLocationEvent } from '../tracking/entities/pre-service-location-event.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PatientAddress } from '../patients/entities/patient-address.entity';
 import { Patient } from '../patients/entities/patient.entity';
@@ -19,6 +21,7 @@ import {
   FranjaHoraria,
   QueryServicesDto,
 } from './dto/query-services.dto';
+import { QueryServiceListDto, ServiceScope } from './dto/query-service-list.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServiceAssignment } from './entities/service-assignment.entity';
@@ -56,6 +59,10 @@ export class ServicesService {
     private readonly patients: Repository<Patient>,
     @InjectRepository(PatientAddress)
     private readonly addresses: Repository<PatientAddress>,
+    @InjectRepository(AttendanceEvent)
+    private readonly attendanceEvents: Repository<AttendanceEvent>,
+    @InjectRepository(PreServiceLocationEvent)
+    private readonly locationEvents: Repository<PreServiceLocationEvent>,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -158,15 +165,71 @@ export class ServicesService {
     }
   }
 
-  /** Lista paginada de servicios para el panel de coordinación. */
-  findAllServices(pagination: PaginationDto): Promise<Service[]> {
-    const { page, limit } = pagination;
-    return this.services.find({
-      relations: { patient: true, address: true },
-      order: { fecha: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  /**
+   * Lista paginada de servicios para el panel, enriquecida con la asignación
+   * operativa activa (la no cancelada) de cada servicio: prestador, estado,
+   * nivel de riesgo y bandera de reemplazo. Es de solo lectura; no toca el
+   * motor de riesgo ni el contrato de creación de asignaciones.
+   *
+   * Filtros opcionales (todos en el servidor): alcance del día, estado de la
+   * asignación, nivel de riesgo, sin asignar y requiere reemplazo.
+   */
+  async findAllServices(query: QueryServiceListDto): Promise<Service[]> {
+    const { page, limit, scope, status, risk, sinAsignar, replacement } = query;
+    const today = scope === ServiceScope.HOY;
+
+    const qb = this.services
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.patient', 'patient')
+      .leftJoinAndSelect('s.address', 'address')
+      // La asignación activa es la que no está cancelada (a lo sumo una).
+      .leftJoinAndSelect('s.assignments', 'a', 'a.status != :cancelado', {
+        cancelado: AssignmentStatus.CANCELADO,
+      })
+      .leftJoinAndSelect('a.provider', 'provider');
+
+    if (today) {
+      const { start, end } = argentinaDayRangeUtc();
+      qb.andWhere('s.start_time BETWEEN :start AND :end', { start, end });
+    }
+    if (status) {
+      qb.andWhere('a.status = :status', { status });
+    }
+    if (risk) {
+      qb.andWhere('a.risk_level = :risk', { risk });
+    }
+    if (sinAsignar) {
+      qb.andWhere('a.id IS NULL');
+    }
+    if (replacement) {
+      qb.andWhere('a.replacement_required = true');
+    }
+
+    // Importante: ordenar por la PROPIEDAD de la entidad (`startTime`), no por
+    // la columna cruda (`start_time`). Con `skip`/`take` + join a una colección
+    // (`s.assignments`), TypeORM arma una query distinct para paginar y necesita
+    // la metadata de la columna del ORDER BY; con el nombre crudo no la resuelve
+    // y rompe con "Cannot read properties of undefined (reading 'databaseName')".
+    qb.orderBy('s.startTime', today ? 'ASC' : 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const services = await qb.getMany();
+
+    // Exponer la asignación activa como objeto único. Si un servicio tuviera
+    // más de una asignación no cancelada (caso atípico), se toma la más
+    // reciente para que el panel muestre la vigente, no una al azar.
+    for (const service of services) {
+      const active = (service.assignments ?? []).reduce<ServiceAssignment | null>(
+        (latest, candidate) =>
+          !latest || candidate.createdAt > latest.createdAt ? candidate : latest,
+        null,
+      );
+      (
+        service as Service & { assignment: ServiceAssignment | null }
+      ).assignment = active;
+    }
+    return services;
   }
 
   /** Devuelve un servicio individual con sus relaciones para la ficha. */
@@ -333,7 +396,12 @@ export class ServicesService {
       .getMany();
   }
 
-  async findAssignment(id: string): Promise<ServiceAssignment> {
+  async findAssignment(id: string): Promise<
+    ServiceAssignment & {
+      attendanceEvents: AttendanceEvent[];
+      locationEvents: PreServiceLocationEvent[];
+    }
+  > {
     const assignment = await this.assignments.findOne({
       where: { id },
       relations: {
@@ -346,7 +414,23 @@ export class ServicesService {
     if (!assignment) {
       throw new NotFoundException('Asignación no encontrada');
     }
-    return assignment;
+
+    // La ficha de coordinación arma su línea de tiempo de campo con estos
+    // eventos; sin esto la asignación llega sin historial. Se cargan por
+    // repositorio (no hay relación OneToMany en la entidad) ordenados de más
+    // reciente a más antiguo, que es como los lee el panel.
+    const [attendanceEvents, locationEvents] = await Promise.all([
+      this.attendanceEvents.find({
+        where: { assignment: { id } },
+        order: { timestampServer: 'DESC' },
+      }),
+      this.locationEvents.find({
+        where: { assignment: { id } },
+        order: { timestampServer: 'DESC' },
+      }),
+    ]);
+
+    return Object.assign(assignment, { attendanceEvents, locationEvents });
   }
 
   /** Lista paginada de asignaciones operativas. */

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AttendanceEvent } from '../attendance/entities/attendance-event.entity';
+import { PreServiceLocationEvent } from '../tracking/entities/pre-service-location-event.entity';
 import { PatientAddress } from '../patients/entities/patient-address.entity';
 import { Patient } from '../patients/entities/patient.entity';
 import { Provider } from '../providers/entities/provider.entity';
@@ -22,6 +24,8 @@ import { ServicesService } from './services.service';
       Provider,
       Patient,
       PatientAddress,
+      AttendanceEvent,
+      PreServiceLocationEvent,
     ]),
     DevicesModule,
     NotificationsModule,

@@ -5,9 +5,10 @@ import { ProviderRole } from './provider-role.entity';
 
 /**
  * Prestador que ejecuta los servicios domiciliarios de cuidado.
- * Puede darse de alta desde el panel (email + contraseña) o por activación de
- * dispositivo vía QR (email sin contraseña: el teléfono activado es su
- * credencial).
+ * Se da de alta desde el panel con sus datos de identidad (incluido el DNI) y
+ * activa su credencial por dispositivo (código de 8 dígitos / QR): el teléfono
+ * activado es su credencial. La contraseña es opcional y heredada; un prestador
+ * sin contraseña no puede loguear por email, sólo por dispositivo.
  */
 @Entity('providers')
 export class Provider extends BaseEntity {
@@ -28,6 +29,12 @@ export class Provider extends BaseEntity {
   @Index({ unique: true })
   @Column({ nullable: true })
   email: string;
+
+  // Documento de identidad. Reemplaza a la contraseña en el alta desde el
+  // panel. Único tolerando NULL (conviven prestadores sin DNI cargado).
+  @Index({ unique: true })
+  @Column({ type: 'varchar', nullable: true })
+  dni: string | null;
 
   @Column({ nullable: true, select: false })
   passwordHash: string;

@@ -2,10 +2,12 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AssignmentStatus } from '../../common/enums';
+import { AttendanceEvent } from '../attendance/entities/attendance-event.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PatientAddress } from '../patients/entities/patient-address.entity';
 import { Patient } from '../patients/entities/patient.entity';
 import { Provider } from '../providers/entities/provider.entity';
+import { PreServiceLocationEvent } from '../tracking/entities/pre-service-location-event.entity';
 import { ServiceAssignment } from './entities/service-assignment.entity';
 import { Service } from './entities/service.entity';
 import { ServicesService } from './services.service';
@@ -45,6 +47,8 @@ describe('ServicesService — notificaciones de asignación', () => {
         { provide: getRepositoryToken(Provider), useValue: providers },
         { provide: getRepositoryToken(Patient), useValue: {} },
         { provide: getRepositoryToken(PatientAddress), useValue: {} },
+        { provide: getRepositoryToken(AttendanceEvent), useValue: {} },
+        { provide: getRepositoryToken(PreServiceLocationEvent), useValue: {} },
         { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();

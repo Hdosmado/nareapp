@@ -11,7 +11,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { ApiError, apiFetch } from '../lib/api';
 import { formatDateTime, type Row } from '../lib/format';
 import { Icon } from './Icon';
-import { Portal } from './Portal';
+import { Modal } from './Modal';
 import { useToast } from './ToastProvider';
 
 interface DeviceInfo {
@@ -187,18 +187,9 @@ export function DeviceManagerModal({
   const anyBusy = busy !== null;
 
   return (
-    <Portal>
-      <div className="overlay" onClick={onClose}>
-        <div
-          className="modal"
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Dispositivo de ${name}`}
-        >
+    <Modal onClose={onClose} label={`Dispositivo de ${name}`}>
           <div className="modal__head">
             <div>
-              <div className="eyebrow">Activación por código</div>
               <div className="modal__title">Dispositivo · {name}</div>
             </div>
             <button
@@ -438,8 +429,6 @@ export function DeviceManagerModal({
               Cerrar
             </button>
           </div>
-        </div>
-      </div>
-    </Portal>
+    </Modal>
   );
 }

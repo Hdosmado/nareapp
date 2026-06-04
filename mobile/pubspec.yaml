@@ -66,5 +66,27 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
+  # Genera los íconos de launcher (Android adaptativo + iOS) desde el arte de
+  # marca. Correr: dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.1
+
 flutter:
   uses-material-design: true
+
+  assets:
+    # Logomark transparente para uso in-app (splash, activación, app bar).
+    - assets/brand/logo.png
+
+# Ícono de la app, generado desde el arte de marca. El arte ya trae su recuadro
+# crema sobre fondo transparente, así que sirve como imagen base y como capa
+# frontal del ícono adaptativo de Android; el fondo adaptativo usa el crema del
+# logo para que los bordes enmascarados queden parejos.
+flutter_launcher_icons:
+  image_path: "assets/brand/app-icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FBEFE7"
+  adaptive_icon_foreground: "assets/brand/app-icon.png"
+  web:
+    generate: false

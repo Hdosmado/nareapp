@@ -87,7 +87,6 @@ export function DevicesPendingPage() {
     <div className="page">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">Operación</div>
           <h1 className="pagehead__title">Dispositivos pendientes</h1>
           <p className="pagehead__desc">
             Dispositivos mobile de prestadores a la espera de una decisión de

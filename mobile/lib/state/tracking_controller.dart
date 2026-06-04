@@ -231,7 +231,10 @@ class TrackingController extends Notifier<TrackingState> {
       // recalcula la geocerca y evalúa el fraude.
       isMocked: position.isMocked,
     );
-    await ref.read(syncControllerProvider.notifier).recordEvent(event);
+    // El latido NO se entrega de inmediato: se acumula en la cola y se manda
+    // junto con el resto del lote cuando el prestador abre la app (o al volver
+    // la red). Así un servicio de varias horas no genera un goteo de requests.
+    await ref.read(syncControllerProvider.notifier).enqueueDeferred(event);
     state = state.copyWith(
       sampleCount: state.sampleCount + 1,
       permissionAlways: permissionWire == 'siempre',

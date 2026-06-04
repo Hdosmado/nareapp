@@ -26,6 +26,7 @@ const thresholds: RiskThresholds = {
   signalStaleMin: 12,
   farDistanceM: 3000,
   leadMin: 45,
+  replacementGraceMin: 20,
 };
 
 /** Construye un set de inputs partiendo de un caso base sin riesgo. */
@@ -36,6 +37,7 @@ function inputs(overrides: Partial<RiskInputs>): RiskInputs {
     hasFreshSignal: false,
     hasAnySignal: false,
     distanceToAddress: null,
+    replacementGraceActive: false,
     ...overrides,
   };
 }
@@ -130,6 +132,55 @@ describe('decideRisk — motor de riesgo operativo', () => {
     expect(d.replacementRequired).toBe(true);
     expect(d.alert?.type).toBe(AlertType.AUSENCIA_PROBABLE);
     expect(d.alert?.severity).toBe(AlertSeverity.CRITICA);
+  });
+
+  it('reemplazo dentro de la gracia, con inicio vencido: próximo y verde, sin alerta', () => {
+    // Reemplazo asignado durante el turno (hereda un startTime ya vencido) pero
+    // todavía dentro de su ventana de gracia: no se lo marca como ausencia.
+    const d = decideRisk(
+      inputs({ minutesToStart: -60, replacementGraceActive: true }),
+      thresholds,
+    );
+    expect(d.status).toBe(AssignmentStatus.PROXIMO);
+    expect(d.riskLevel).toBe(RiskLevel.VERDE);
+    expect(d.replacementRequired).toBe(false);
+    expect(d.alert).toBeNull();
+  });
+
+  it('reemplazo dentro de la gracia, recién pasada la hora: tampoco escala a inicio vencido', () => {
+    const d = decideRisk(
+      inputs({ minutesToStart: -5, replacementGraceActive: true }),
+      thresholds,
+    );
+    expect(d.status).toBe(AssignmentStatus.PROXIMO);
+    expect(d.riskLevel).toBe(RiskLevel.VERDE);
+    expect(d.alert).toBeNull();
+  });
+
+  it('reemplazo con la gracia vencida: vuelven las reglas normales (ausencia probable)', () => {
+    const d = decideRisk(
+      inputs({ minutesToStart: -60, replacementGraceActive: false }),
+      thresholds,
+    );
+    expect(d.status).toBe(AssignmentStatus.AUSENTE_PROBABLE);
+    expect(d.riskLevel).toBe(RiskLevel.ROJO);
+    expect(d.replacementRequired).toBe(true);
+    expect(d.alert?.type).toBe(AlertType.AUSENCIA_PROBABLE);
+  });
+
+  it('la gracia no afecta la ventana previa: un reemplazo antes del inicio sigue el ladder normal', () => {
+    // minutesToStart > 0: aunque la gracia esté activa, las reglas pre-servicio
+    // (acá, sin señal a 25 min) operan igual; la gracia solo cubre la tardanza.
+    const d = decideRisk(
+      inputs({
+        minutesToStart: 25,
+        hasFreshSignal: false,
+        replacementGraceActive: true,
+      }),
+      thresholds,
+    );
+    expect(d.status).toBe(AssignmentStatus.EN_RIESGO);
+    expect(d.alert?.type).toBe(AlertType.SIN_SENAL_30);
   });
 });
 

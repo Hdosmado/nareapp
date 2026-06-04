@@ -21,13 +21,27 @@ export class PatientsService {
     private readonly addresses: Repository<PatientAddress>,
   ) {}
 
+  /** Verifica que el DNI no esté ya tomado por otra persona a cuidar. */
+  private async assertDniAvailable(dni: string, exceptId?: string): Promise<void> {
+    const existing = await this.patients.findOne({ where: { dni } });
+    if (existing && existing.id !== exceptId) {
+      throw new ConflictException('Ya existe una persona a cuidar con ese DNI');
+    }
+  }
+
   /** Da de alta una persona a cuidar y, opcionalmente, su domicilio. */
   async create(dto: CreatePatientDto): Promise<Patient> {
+    await this.assertDniAvailable(dto.dni);
     const patient = await this.patients.save(
       this.patients.create({
         apellido: dto.apellido,
         nombre: dto.nombre,
+        dni: dto.dni,
+        fechaNacimiento: dto.fechaNacimiento,
         telefonoContacto: dto.telefonoContacto,
+        contactoEmergenciaNombre: dto.contactoEmergenciaNombre,
+        contactoEmergenciaTelefono: dto.contactoEmergenciaTelefono,
+        observaciones: dto.observaciones,
       }),
     );
     if (dto.address) {
@@ -74,11 +88,19 @@ export class PatientsService {
     if (!patient) {
       throw new NotFoundException('Persona a cuidar no encontrada');
     }
+    if (dto.dni && dto.dni !== patient.dni) {
+      await this.assertDniAvailable(dto.dni, id);
+    }
     // El domicilio anidado se gestiona por su propio CRUD; se ignora acá.
     this.patients.merge(patient, {
       apellido: dto.apellido,
       nombre: dto.nombre,
+      dni: dto.dni,
+      fechaNacimiento: dto.fechaNacimiento,
       telefonoContacto: dto.telefonoContacto,
+      contactoEmergenciaNombre: dto.contactoEmergenciaNombre,
+      contactoEmergenciaTelefono: dto.contactoEmergenciaTelefono,
+      observaciones: dto.observaciones,
     });
     await this.patients.save(patient);
     return this.findOne(id);

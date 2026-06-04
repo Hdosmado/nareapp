@@ -34,6 +34,9 @@ interface AddressPoint {
   calle: string;
   ciudad: string;
   provincia: string;
+  /** Radio de geocerca del domicilio (m): tolerancia de llegada del prestador.
+   *  Lo usa el panel para dibujar la geocerca en el mapa operativo. */
+  allowedRadiusM: number;
 }
 
 /** Última ubicación reportada por el prestador en la ventana pre-servicio. */
@@ -52,6 +55,13 @@ export interface LastLocationResult {
   address: AddressPoint | null;
   lastLocation: LastLocationPoint | null;
   distanceMeters: number | null;
+  /** ¿El último punto del prestador cae dentro de la geocerca del domicilio?
+   *  null si no se puede calcular (sin coordenadas del domicilio o sin GPS). */
+  insideGeofence: boolean | null;
+  /** Minutos que el prestador lleva continuamente fuera de la geocerca, medidos
+   *  desde la última vez que se lo registró dentro. null si está dentro o no
+   *  computable. Alimenta la señal de proximidad del marker en el panel. */
+  minutesOutsideGeofence: number | null;
 }
 
 /** Distancia en metros entre dos coordenadas (fórmula de Haversine). */
@@ -252,10 +262,14 @@ export class CoordinationService {
       address: true,
     });
     const address = assignment.address;
-    const event = await this.locationEvents.findOne({
+    // Historial reciente (no sólo el último punto): hace falta para medir hace
+    // cuánto el prestador está continuamente fuera de la geocerca.
+    const events = await this.locationEvents.find({
       where: { assignment: { id: assignmentId } },
       order: { timestampServer: 'DESC' },
+      take: 500,
     });
+    const event = events[0] ?? null;
 
     const addressPoint: AddressPoint | null =
       address && address.latitude != null && address.longitude != null
@@ -265,6 +279,7 @@ export class CoordinationService {
             calle: address.calle,
             ciudad: address.ciudad,
             provincia: address.provincia,
+            allowedRadiusM: address.allowedRadiusM,
           }
         : null;
 
@@ -291,7 +306,44 @@ export class CoordinationService {
           )
         : null;
 
-    return { assignmentId, address: addressPoint, lastLocation, distanceMeters };
+    // Señal de proximidad: ¿el último punto está dentro del radio? y, si está
+    // fuera, ¿hace cuántos minutos que no se lo registra dentro?
+    let insideGeofence: boolean | null = null;
+    let minutesOutsideGeofence: number | null = null;
+    if (addressPoint && event) {
+      const within = (e: PreServiceLocationEvent): boolean =>
+        haversineMeters(
+          addressPoint.latitude,
+          addressPoint.longitude,
+          e.latitude,
+          e.longitude,
+        ) <= addressPoint.allowedRadiusM;
+      insideGeofence = within(event);
+      if (!insideGeofence) {
+        // events está en DESC: el primero que cae dentro es el más reciente
+        // dentro. Si ninguno cae dentro en la ventana, se mide desde el más
+        // viejo disponible (el prestador estuvo fuera al menos ese tiempo).
+        const lastInside = events.find(within);
+        const since = lastInside
+          ? lastInside.timestampServer
+          : events[events.length - 1].timestampServer;
+        minutesOutsideGeofence = Math.max(
+          0,
+          Math.round(
+            (event.timestampServer.getTime() - since.getTime()) / 60000,
+          ),
+        );
+      }
+    }
+
+    return {
+      assignmentId,
+      address: addressPoint,
+      lastLocation,
+      distanceMeters,
+      insideGeofence,
+      minutesOutsideGeofence,
+    };
   }
 
   private async loadAssignment(

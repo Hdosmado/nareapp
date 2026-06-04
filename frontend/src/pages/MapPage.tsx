@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { divIcon, LatLngBounds } from 'leaflet';
 import {
+  Circle,
   MapContainer,
   Marker,
   Popup,
   TileLayer,
+  Tooltip,
   useMap,
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -25,6 +27,12 @@ import {
 import { Icon } from '../components/Icon';
 import { StatusChip } from '../components/StatusChip';
 import { EmptyState, ErrorState } from '../components/states';
+import {
+  NEUTRAL_TONE,
+  RISK_COLOR,
+  normalizeRiskLevel,
+  type RiskLevel,
+} from '../lib/risk';
 
 /** Punto geográfico genérico. */
 interface GeoPoint {
@@ -36,6 +44,8 @@ interface AddressPoint extends GeoPoint {
   calle: string;
   ciudad: string;
   provincia: string;
+  /** Radio de geocerca del domicilio (m): tolerancia de llegada. */
+  allowedRadiusM: number;
 }
 
 interface LastLocationPoint extends GeoPoint {
@@ -51,6 +61,10 @@ interface LastLocationResult {
   address: AddressPoint | null;
   lastLocation: LastLocationPoint | null;
   distanceMeters: number | null;
+  /** ¿El último punto cae dentro de la geocerca? null si no es computable. */
+  insideGeofence: boolean | null;
+  /** Minutos continuos fuera de la geocerca; null si está dentro o no computable. */
+  minutesOutsideGeofence: number | null;
 }
 
 /** Refresca el mapa cada 30s. Los datos se recargan vía React Query. */
@@ -65,15 +79,6 @@ const TRACKING_STATES = new Set([
   'llego',
   'en_servicio',
 ]);
-
-type RiskLevel = 'verde' | 'amarillo' | 'naranja' | 'rojo';
-
-const RISK_COLOR: Record<RiskLevel, string> = {
-  verde: '#15803d',
-  amarillo: '#ca8a04',
-  naranja: '#ea580c',
-  rojo: '#dc2626',
-};
 
 /**
  * Mapa operativo del panel.
@@ -136,7 +141,6 @@ export function MapPage() {
     <div className="page">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">Operación</div>
           <h1 className="pagehead__title">Mapa operativo</h1>
           <p className="pagehead__desc">
             Última ubicación conocida de los prestadores con servicio en
@@ -194,9 +198,143 @@ function markerIcon(risk: RiskLevel) {
 
 /** Lee y normaliza el riskLevel de una fila. */
 function rowRiskLevel(row: Row): RiskLevel {
-  const raw = String(getValue(row, 'riskLevel') ?? 'verde').toLowerCase();
-  if (raw === 'amarillo' || raw === 'naranja' || raw === 'rojo') return raw;
-  return 'verde';
+  return normalizeRiskLevel(getValue(row, 'riskLevel'));
+}
+
+/**
+ * Geocerca del domicilio: el radio de tolerancia de llegada del prestador,
+ * en taupe neutro para no competir con el color de riesgo de los markers. Su
+ * utilidad es de un vistazo: ver si el punto del prestador cae dentro o fuera.
+ */
+const GEOFENCE_STYLE = {
+  color: NEUTRAL_TONE,
+  weight: 1.5,
+  opacity: 0.55,
+  fillColor: NEUTRAL_TONE,
+  fillOpacity: 0.06,
+  dashArray: '4 5',
+} as const;
+
+/** Identidad del par: apellido del prestador y «Inicial. Apellido» de la persona. */
+function identityLabel(row: Row): { provider: string; patient: string } {
+  const provApellido = String(getValue(row, 'provider.apellido') ?? '').trim();
+  const patApellido = String(getValue(row, 'patient.apellido') ?? '').trim();
+  const patNombre = String(getValue(row, 'patient.nombre') ?? '').trim();
+  const patient = patApellido
+    ? patNombre
+      ? `${patNombre[0].toUpperCase()}. ${patApellido}`
+      : patApellido
+    : '';
+  return { provider: provApellido || 'Prestador', patient };
+}
+
+/** "Un buen rato" fuera de la geocerca: a partir de estos minutos, rojo. */
+const OUTSIDE_ALERT_MIN = 15;
+
+/** Estados donde ya se espera al prestador en el domicilio (estar fuera pesa). */
+const ARRIVAL_EXPECTED = new Set([
+  'llego',
+  'en_servicio',
+  'demorado',
+  'ausente',
+  'ausente_probable',
+]);
+
+/**
+ * Señal de proximidad del prestador respecto de la geocerca del domicilio,
+ * graduada por cuánto lleva fuera. Reusa el semáforo, pero acá significa
+ * "¿está donde debería?":
+ *  - verde:    dentro de la geocerca.
+ *  - amarillo: fuera, pero la llegada todavía no se espera (en aproximación).
+ *  - naranja:  fuera con llegada ya esperada, hace poco.
+ *  - rojo:     fuera con llegada esperada hace un buen rato (problema sostenido).
+ * Devuelve null si la geocerca no es computable: el marker cae al riskLevel.
+ */
+function proximitySignal(
+  row: Row,
+  loc: LastLocationResult,
+): { level: RiskLevel; text: string } | null {
+  // `== null` (no `===`) a propósito: un backend viejo manda el campo como
+  // `undefined`; así no inventamos una señal de proximidad sin dato real.
+  if (loc.insideGeofence == null) return null;
+  if (loc.insideGeofence) return { level: 'verde', text: 'En el domicilio' };
+
+  const mins = loc.minutesOutsideGeofence ?? 0;
+  const status = String(getValue(row, 'status') ?? '');
+  const startTime = getValue(row, 'startTime');
+  const start = startTime ? new Date(String(startTime)).getTime() : NaN;
+  const arrivalExpected =
+    ARRIVAL_EXPECTED.has(status) ||
+    (!Number.isNaN(start) && Date.now() >= start);
+
+  if (!arrivalExpected) return { level: 'amarillo', text: 'En aproximación' };
+  const text = mins > 0 ? `Fuera de zona hace ${mins} min` : 'Fuera de zona';
+  return { level: mins >= OUTSIDE_ALERT_MIN ? 'rojo' : 'naranja', text };
+}
+
+/**
+ * Etiqueta de identidad anclada a un marker (tooltip de Leaflet reestilado).
+ * `permanent` la deja fija (modo "Nombres" activo); si no, aparece al pasar el
+ * puntero, para identificar sin saturar cuando hay muchos markers.
+ */
+function IdentityLabel({
+  level,
+  provider,
+  patient,
+  permanent,
+}: {
+  level: RiskLevel;
+  provider: string;
+  patient: string;
+  permanent: boolean;
+}) {
+  return (
+    <Tooltip
+      // `permanent` se fija al crear el tooltip en Leaflet; remontamos con key
+      // para que alternar fijo/hover (toggle "Nombres") tome efecto en caliente.
+      key={permanent ? 'fijo' : 'hover'}
+      permanent={permanent}
+      direction="right"
+      offset={[11, 0]}
+      opacity={1}
+      className="maplabel"
+    >
+      <span
+        className="maplabel__dot"
+        style={{ background: RISK_COLOR[level] }}
+        aria-hidden="true"
+      />
+      <span className="maplabel__name">{provider}</span>
+      {patient && <span className="maplabel__to">→ {patient}</span>}
+    </Tooltip>
+  );
+}
+
+/**
+ * Etiqueta de ancla del domicilio: marca de rombo + apellido del prestador que
+ * lo cubre. Estilo tenue para no competir con la etiqueta viva del prestador;
+ * su función es identificar de quién es cada domicilio de un vistazo.
+ */
+function HomeLabel({
+  provider,
+  permanent,
+}: {
+  provider: string;
+  permanent: boolean;
+}) {
+  return (
+    <Tooltip
+      key={permanent ? 'fijo' : 'hover'}
+      permanent={permanent}
+      direction="right"
+      offset={[10, 0]}
+      opacity={1}
+      className="maplabel maplabel--home"
+    >
+      <span className="maplabel__home" aria-hidden="true" />
+      <span className="maplabel__name">{provider}</span>
+    </Tooltip>
+  );
 }
 
 /** Renderiza el mapa con los markers y la lista lateral. */
@@ -209,15 +347,36 @@ function OperationalMap({
 }) {
   const withProvider = points.filter((p) => p.loc.lastLocation !== null);
   const withoutProvider = points.filter((p) => p.loc.lastLocation === null);
+  // Nombres fijos sobre los markers: encendidos por defecto (es el sentido del
+  // mapa, distinguir a varios de un vistazo). Apagarlos deja las etiquetas en
+  // modo hover, para descongestionar cuando hay muchos puntos juntos.
+  const [showLabels, setShowLabels] = useState(true);
 
   return (
     <div className="stack gap-4">
-      <div className="row gap-2 muted" style={{ fontSize: 13 }}>
+      <div
+        className="row gap-2 wrap"
+        style={{ fontSize: 13, color: 'var(--ink-soft)' }}
+      >
         <Icon name="activity" size={14} />
         <span>
           {points.length} de {totalTracked} servicios en tracking con datos
           cargados · {withProvider.length} con ubicación del prestador
         </span>
+        <button
+          className={`chipfilter${showLabels ? ' is-active' : ''}`}
+          style={{ marginLeft: 'auto' }}
+          onClick={() => setShowLabels((v) => !v)}
+          aria-pressed={showLabels}
+          title={
+            showLabels
+              ? 'Ocultar nombres (quedan al pasar el puntero)'
+              : 'Mostrar nombres sobre los markers'
+          }
+        >
+          <Icon name="users" size={13} />
+          Nombres
+        </button>
       </div>
 
       <div className="card" style={{ overflow: 'hidden' }}>
@@ -235,6 +394,7 @@ function OperationalMap({
               row={row}
               loc={loc}
               risk={rowRiskLevel(row)}
+              showLabels={showLabels}
             />
           ))}
         </MapContainer>
@@ -272,28 +432,43 @@ function FitBoundsToPoints({
     return result;
   }, [points]);
 
-  useMemo(() => {
+  // Firma estable de las coordenadas: `coords` cambia de identidad en cada
+  // render (los resultados de useQueries se recrean), pero esta cadena sólo
+  // cambia cuando una coordenada cambia de verdad. Así el reencuadre no se
+  // dispara en cada render ni pelea con el pan/zoom manual del usuario.
+  const coordsKey = useMemo(
+    () => coords.map((c) => `${c[0]},${c[1]}`).join('|'),
+    [coords],
+  );
+
+  // El reencuadre es un efecto imperativo sobre el mapa, no un cálculo puro:
+  // va en useEffect (no en useMemo, que React puede recalcular o descartar a
+  // discreción y que se ejecutaría dos veces bajo StrictMode).
+  useEffect(() => {
     if (coords.length === 0) return;
     if (coords.length === 1) {
       map.setView(coords[0], 14);
       return;
     }
-    const bounds = new LatLngBounds(coords);
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-  }, [coords, map]);
+    map.fitBounds(new LatLngBounds(coords), { padding: [40, 40], maxZoom: 15 });
+    // Depende de la firma estable, no del array `coords`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coordsKey, map]);
 
   return null;
 }
 
-/** Markers de un servicio individual: domicilio + (opcional) prestador. */
+/** Markers de un servicio individual: domicilio + geocerca + (opcional) prestador. */
 function ServiceMarkers({
   row,
   loc,
   risk,
+  showLabels,
 }: {
   row: Row;
   loc: LastLocationResult;
   risk: RiskLevel;
+  showLabels: boolean;
 }) {
   const providerName = [
     getValue(row, 'provider.apellido'),
@@ -303,30 +478,71 @@ function ServiceMarkers({
     .join(', ');
   const startTime = getValue(row, 'startTime');
   const status = String(getValue(row, 'status') ?? '');
+  const identity = identityLabel(row);
+  const proximity = proximitySignal(row, loc);
+  // Color del marker del prestador: la señal de proximidad a la geocerca manda;
+  // si no es computable (domicilio sin coordenadas), cae al riskLevel del motor.
+  const markerLevel = proximity?.level ?? risk;
 
   return (
     <>
       {loc.address && (
-        <Marker
-          position={[loc.address.latitude, loc.address.longitude]}
-          icon={homeIcon()}
-        >
-          <Popup>
-            <strong>Domicilio</strong>
-            <div>{loc.address.calle}</div>
-            <div className="muted">
-              {loc.address.ciudad}, {loc.address.provincia}
-            </div>
-          </Popup>
-        </Marker>
+        <>
+          {/* Geocerca: radio de llegada del domicilio (referencia espacial).
+              Sólo si el radio es válido: tolera un backend viejo que todavía no
+              envía `allowedRadiusM` (no dibuja un círculo roto). */}
+          {loc.address.allowedRadiusM > 0 && (
+            <Circle
+              center={[loc.address.latitude, loc.address.longitude]}
+              radius={loc.address.allowedRadiusM}
+              pathOptions={GEOFENCE_STYLE}
+            />
+          )}
+          <Marker
+            position={[loc.address.latitude, loc.address.longitude]}
+            icon={homeIcon()}
+          >
+            {/* El domicilio dice quién lo cubre: el prestador asignado. */}
+            <HomeLabel provider={identity.provider} permanent={showLabels} />
+            <Popup>
+              <strong>Domicilio</strong>
+              <div>{loc.address.calle}</div>
+              <div className="muted">
+                {loc.address.ciudad}, {loc.address.provincia}
+              </div>
+              <div className="muted">Prestador: {providerName || '—'}</div>
+              <div className="muted">
+                Radio de llegada: {loc.address.allowedRadiusM} m
+              </div>
+            </Popup>
+          </Marker>
+        </>
       )}
       {loc.lastLocation && (
         <Marker
           position={[loc.lastLocation.latitude, loc.lastLocation.longitude]}
-          icon={markerIcon(risk)}
+          icon={markerIcon(markerLevel)}
         >
+          {/* La identidad cuelga del prestador: es el punto que importa seguir.
+              El punto de color = señal de proximidad (misma del marker). */}
+          <IdentityLabel
+            level={markerLevel}
+            provider={identity.provider}
+            patient={identity.patient}
+            permanent={showLabels}
+          />
           <Popup>
             <strong>{providerName || 'Prestador'}</strong>
+            {proximity && (
+              <div className="map-signal">
+                <span
+                  className="map-signal__dot"
+                  style={{ background: RISK_COLOR[proximity.level] }}
+                  aria-hidden="true"
+                />
+                {proximity.text}
+              </div>
+            )}
             <div className="muted">{humanize(status)}</div>
             <div className="muted">Inicio: {formatDateTime(startTime)}</div>
             <div className="muted">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { groupedResources, RESOURCES } from '../resources';
@@ -40,7 +40,13 @@ export function AppLayout() {
           .join(' ')}
       >
         <div className="sidebar__head">
-          <div className="sidebar__logo">N</div>
+          <img
+            className="sidebar__logo"
+            src="/brand/logo.png"
+            alt="NareApp"
+            width={32}
+            height={32}
+          />
           <div className="sidebar__brand">
             <b>NareApp</b>
             <span>Coordinación</span>
@@ -76,10 +82,24 @@ export function AppLayout() {
           {groups.map((group) => (
             <div key={group.group}>
               <div className="sidebar__group">{group.group}</div>
+              {/* Servicios vive en su pantalla propia, dentro de Operación. */}
+              {group.group === 'Operación' && (
+                <NavLink
+                  to="/servicios"
+                  className={linkClass}
+                  onClick={closeMobile}
+                  title="Servicios"
+                >
+                  <span className="navlink__icon">
+                    <Icon name="briefcase" size={17} />
+                  </span>
+                  <span className="navlink__label">Servicios</span>
+                </NavLink>
+              )}
               {group.items.map((resource) => (
                 <NavLink
                   key={resource.key}
-                  to={`/r/${resource.key}`}
+                  to={resource.route ?? `/r/${resource.key}`}
                   className={linkClass}
                   onClick={closeMobile}
                   title={resource.label}
@@ -117,7 +137,7 @@ export function AppLayout() {
         <Portal>
           <div
             className="overlay"
-            style={{ zIndex: 35, background: 'rgba(8,12,22,0.4)' }}
+            style={{ zIndex: 35, background: 'var(--overlay)' }}
             onClick={closeMobile}
             aria-hidden="true"
           />
@@ -159,16 +179,19 @@ interface JumpItem {
 function GlobalJump({ onPick }: { onPick: (to: string) => void }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const listId = 'global-jump-list';
 
   const items = useMemo<JumpItem[]>(() => {
     const base: JumpItem[] = [
       { to: '/', label: 'Tablero operativo', icon: 'dashboard' },
+      { to: '/servicios', label: 'Servicios', icon: 'briefcase' },
       { to: '/agenda', label: 'Agenda de servicios', icon: 'calendar' },
       { to: '/mapa', label: 'Mapa operativo', icon: 'pin' },
       { to: '/dispositivos', label: 'Dispositivos pendientes', icon: 'activity' },
     ];
     const fromResources: JumpItem[] = RESOURCES.map((r) => ({
-      to: `/r/${r.key}`,
+      to: r.route ?? `/r/${r.key}`,
       label: r.label,
       icon: r.icon,
     }));
@@ -181,12 +204,59 @@ function GlobalJump({ onPick }: { onPick: (to: string) => void }) {
     return items.filter((i) => i.label.toLowerCase().includes(term));
   }, [items, query]);
 
+  const visible = filtered.slice(0, 8);
+  const expanded = open && visible.length > 0;
+
+  // Reinicia el resaltado al filtrar o al reabrir el menú.
+  useEffect(() => {
+    setActive(0);
+  }, [query, open]);
+
+  function choose(item: JumpItem) {
+    onPick(item.to);
+    setQuery('');
+    setOpen(false);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      // Cerrado: abre y resalta el primero. Abierto: baja uno.
+      if (!open) {
+        setOpen(true);
+        setActive(0);
+      } else {
+        setActive((i) => Math.min(i + 1, visible.length - 1));
+      }
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActive((i) => Math.max(i - 1, 0));
+    } else if (event.key === 'Enter') {
+      if (expanded && visible[active]) {
+        event.preventDefault();
+        choose(visible[active]);
+      }
+    } else if (event.key === 'Escape') {
+      if (open) {
+        event.preventDefault();
+        setOpen(false);
+      }
+    }
+  }
+
   return (
     <div className="topbar__search">
       <span className="icon-lead">
         <Icon name="search" size={16} />
       </span>
       <input
+        role="combobox"
+        aria-expanded={expanded}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          expanded ? `global-jump-opt-${active}` : undefined
+        }
         placeholder="Ir a una sección…"
         value={query}
         onChange={(e) => {
@@ -195,27 +265,34 @@ function GlobalJump({ onPick }: { onPick: (to: string) => void }) {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 140)}
+        onKeyDown={onKeyDown}
         aria-label="Buscar sección"
       />
-      {open && filtered.length > 0 && (
-        <div className="combo__menu" style={{ top: 'calc(100% + 6px)' }}>
-          {filtered.slice(0, 8).map((item) => (
-            <div
+      {expanded && (
+        <ul
+          className="combo__menu"
+          id={listId}
+          role="listbox"
+          aria-label="Secciones"
+          style={{ top: 'calc(100% + 6px)' }}
+        >
+          {visible.map((item, i) => (
+            <li
               key={item.to}
-              className="combo__opt"
-              onMouseDown={() => {
-                onPick(item.to);
-                setQuery('');
-                setOpen(false);
-              }}
+              id={`global-jump-opt-${i}`}
+              role="option"
+              aria-selected={i === active}
+              className={`combo__opt${i === active ? ' is-active' : ''}`}
+              onMouseDown={() => choose(item)}
+              onMouseEnter={() => setActive(i)}
             >
               <b style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Icon name={item.icon} size={15} />
                 {item.label}
               </b>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

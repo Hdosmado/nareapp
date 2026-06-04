@@ -138,7 +138,9 @@ export class AuthService {
   }
 
   /** Renueva el par de tokens a partir de un refresh token válido. */
-  async refresh(refreshToken: string): Promise<AuthTokens> {
+  async refresh(
+    refreshToken: string,
+  ): Promise<AuthTokens | UserLoginResult> {
     let decoded: {
       sub: string;
       type: SubjectType;
@@ -192,13 +194,21 @@ export class AuthService {
     if (decoded.tv !== user.tokenVersion) {
       throw new UnauthorizedException('La sesión fue cerrada. Iniciá sesión nuevamente.');
     }
-    return this.signTokens({
+    const tokens = this.signTokens({
       sub: user.id,
       type: 'user',
       email: user.email,
       rol: user.rol,
       tv: user.tokenVersion,
     });
+    // Se devuelve también el `user` (misma forma que el login) para que el
+    // panel pueda rehidratar la sesión tras un reload sin re-pedir credenciales:
+    // el access token vive solo en memoria, así que sin esto el refresh
+    // silencioso renovaba el token pero el usuario aparecía deslogueado.
+    return {
+      ...tokens,
+      user: { id: user.id, nombre: user.nombre, rol: user.rol },
+    };
   }
 
   /**

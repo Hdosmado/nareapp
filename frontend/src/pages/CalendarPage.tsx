@@ -119,7 +119,6 @@ export function CalendarPage() {
     <div className="page">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">Operación</div>
           <h1 className="pagehead__title">Agenda de servicios</h1>
           <p className="pagehead__desc">
             Servicios programados, con color según su estado operativo.

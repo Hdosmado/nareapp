@@ -11,6 +11,9 @@ build/
 .env.local
 .env.*.local
 
+# Notas locales de infra/deploy (no commitear)
+.env.local-backup
+
 # Logs
 *.log
 npm-debug.log*

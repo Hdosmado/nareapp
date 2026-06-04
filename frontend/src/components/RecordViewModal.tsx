@@ -8,7 +8,7 @@ import { relationLabel } from './RelationSelect';
 import type { ResourceDef } from '../resources';
 import { Icon } from './Icon';
 import { JsonViewer } from './JsonViewer';
-import { Portal } from './Portal';
+import { Modal } from './Modal';
 import { StatusChip } from './StatusChip';
 
 /** Devuelve la etiqueta legible de una relación a partir del objeto anidado. */
@@ -32,20 +32,17 @@ export function RecordViewModal({
   onClose: () => void;
 }) {
   return (
-    <Portal>
-      <div className="overlay" onClick={onClose}>
-        <div
-          className="modal modal--wide"
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-        >
+    <Modal
+      onClose={onClose}
+      className="modal--wide"
+      label={`Detalle de ${resource.singular}`}
+    >
         <div className="modal__head">
           <div>
-            <div className="eyebrow">Registro de solo lectura</div>
             <div className="modal__title">
               Detalle de {resource.singular}
             </div>
+            <div className="modal__subtitle">Solo lectura</div>
           </div>
           <button
             type="button"
@@ -100,9 +97,7 @@ export function RecordViewModal({
             Cerrar
           </button>
         </div>
-        </div>
-      </div>
-    </Portal>
+    </Modal>
   );
 }
 

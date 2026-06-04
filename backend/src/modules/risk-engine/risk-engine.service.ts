@@ -126,7 +126,9 @@ export class RiskEngineService {
           AssignmentStatus.DEMORADO,
         ]),
       },
-      relations: { address: true, provider: true },
+      // `originalAssignment` distingue a un reemplazo, para darle gracia desde
+      // su asignación y no marcarlo como ausencia por heredar el inicio vencido.
+      relations: { address: true, provider: true, originalAssignment: true },
     });
 
     for (const assignment of candidates) {
@@ -584,12 +586,22 @@ export class RiskEngineService {
       }
     }
 
+    // Un reemplazo (tiene `originalAssignment`) goza de una ventana de gracia
+    // contada desde su asignación (`createdAt`): mientras no la supere, no se lo
+    // escala por inicio vencido ni ausencia aunque herede un `startTime` vencido.
+    const isReplacement = Boolean(assignment.originalAssignment);
+    const replacementGraceActive =
+      isReplacement &&
+      assignment.createdAt != null &&
+      diffMinutes(now, assignment.createdAt) < thresholds.replacementGraceMin;
+
     return {
       minutesToStart: diffMinutes(assignment.startTime, now),
       hasCheckIn: Boolean(assignment.checkInAt),
       hasFreshSignal,
       hasAnySignal: Boolean(lastLocation),
       distanceToAddress,
+      replacementGraceActive,
     };
   }
 
@@ -602,6 +614,7 @@ export class RiskEngineService {
       signalStaleMin: this.config.getNumber('risk.signal_stale_min', 12),
       farDistanceM: this.config.getNumber('risk.far_distance_m', 3000),
       leadMin: this.config.getNumber('tracking.lead_min', 10),
+      replacementGraceMin: this.config.getNumber('risk.replacement_grace_min', 20),
     };
   }
 }

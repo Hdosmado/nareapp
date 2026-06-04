@@ -9,13 +9,19 @@ export interface RefDef {
   resource: string;
   /** Claves cuyo valor compone la etiqueta visible de cada opción. */
   labelKeys: string[];
+  /**
+   * Campo del MISMO formulario del que depende esta relación: las opciones se
+   * acotan a su valor (ej. el domicilio depende de la persona a cuidar). Sin un
+   * valor en ese campo, el selector queda deshabilitado.
+   */
+  dependsOn?: string;
+  /** Endpoint que devuelve las opciones acotadas, dado el valor del que depende. */
+  scopedPath?: (dependencyValue: string) => string;
+  /** Clave del arreglo de opciones dentro de la respuesta de `scopedPath`. */
+  scopedOptionsKey?: string;
 }
 
 const REF_FIELDS: Record<string, RefDef> = {
-  'provider-roles.providerId': {
-    resource: 'providers',
-    labelKeys: ['apellido', 'nombre'],
-  },
   'patient-addresses.patientId': {
     resource: 'patients',
     labelKeys: ['apellido', 'nombre'],
@@ -31,6 +37,15 @@ const REF_FIELDS: Record<string, RefDef> = {
   'services.addressId': {
     resource: 'patient-addresses',
     labelKeys: ['calle', 'ciudad'],
+    // El domicilio se acota a la persona a cuidar elegida: se traen sus
+    // domicilios desde la ficha de la persona, no todos los del sistema.
+    dependsOn: 'patientId',
+    scopedPath: (patientId) => `/coordination/patients/${patientId}`,
+    scopedOptionsKey: 'addresses',
+  },
+  'services.providerId': {
+    resource: 'providers',
+    labelKeys: ['apellido', 'nombre'],
   },
   'assignments.serviceId': {
     resource: 'services',

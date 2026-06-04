@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 
+import '../core/config/env.dart';
+
 /// Desenlace de la solicitud de permiso de ubicación.
 enum LocationPermissionResult {
   /// Permiso concedido: la app puede usar el GPS.
@@ -109,22 +111,29 @@ class LocationService {
 
   /// Stream de latidos de ubicación de la ventana de tracking automático.
   ///
-  /// En Android corre como **foreground service** con una notificación
+  /// En Android, con la feature flag `Env.activarNotificacion` encendida
+  /// (default), corre como **foreground service** con una notificación
   /// permanente y visible: el prestador siempre sabe que se está compartiendo
   /// la ubicación. Es divulgación explícita, no seguimiento encubierto. Se
   /// detiene solo al cerrarse la ventana del servicio (fin + trail).
+  ///
+  /// Con la flag apagada no se levanta foreground service ni notificación: el
+  /// stream solo entrega latidos con la app en primer plano. Es un modo de
+  /// build (demos/pruebas), no el comportamiento de producción.
   Stream<Position> trackingStream(int intervalSeconds) {
     final settings = AndroidSettings(
       accuracy: LocationAccuracy.high,
       intervalDuration: Duration(seconds: intervalSeconds),
-      foregroundNotificationConfig: const ForegroundNotificationConfig(
-        notificationTitle: 'NareApp comparte tu ubicación',
-        notificationText:
-            'Coordinación ve tu ubicación mientras dura el servicio. Se '
-            'detiene solo al finalizar.',
-        enableWakeLock: true,
-        setOngoing: true,
-      ),
+      foregroundNotificationConfig: Env.activarNotificacion
+          ? const ForegroundNotificationConfig(
+              notificationTitle: 'NareApp comparte tu ubicación',
+              notificationText:
+                  'Coordinación ve tu ubicación mientras dura el servicio. Se '
+                  'detiene solo al finalizar.',
+              enableWakeLock: true,
+              setOngoing: true,
+            )
+          : null,
     );
     return Geolocator.getPositionStream(locationSettings: settings);
   }

@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Icon } from './Icon';
+import { Portal } from './Portal';
 
 type ToastKind = 'ok' | 'error';
 
@@ -34,19 +35,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={notify}>
       {children}
-      <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={t.kind === 'error' ? 'toast toast--error' : 'toast'}
-          >
-            <span className="toast__icon">
-              <Icon name={t.kind === 'error' ? 'alert' : 'check'} size={17} />
-            </span>
-            {t.message}
-          </div>
-        ))}
-      </div>
+      {/* Porteado a <body>: queda fuera de `#root`, así un toast se sigue
+          anunciando aunque haya un modal abierto (que vuelve `#root` inerte). */}
+      <Portal>
+        <div className="toasts">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={t.kind === 'error' ? 'toast toast--error' : 'toast'}
+              // Los errores interrumpen al lector (assertive); las
+              // confirmaciones esperan su turno (polite). Cada toast lleva su
+              // propia región viva: así el rol correcto acompaña a su contenido.
+              role={t.kind === 'error' ? 'alert' : 'status'}
+              aria-live={t.kind === 'error' ? 'assertive' : 'polite'}
+            >
+              <span className="toast__icon">
+                <Icon name={t.kind === 'error' ? 'alert' : 'check'} size={17} />
+              </span>
+              {t.message}
+            </div>
+          ))}
+        </div>
+      </Portal>
     </ToastContext.Provider>
   );
 }

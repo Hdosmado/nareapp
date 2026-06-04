@@ -78,13 +78,52 @@ export class AlertsService {
     return saved;
   }
 
-  /** Alertas activas (abiertas o en gestión), para el panel de coordinación. */
+  /** Query base con prestador, persona a cuidar y servicio de la asignación. */
+  private alertsWithParties() {
+    return this.alerts
+      .createQueryBuilder('alert')
+      .leftJoinAndSelect('alert.assignment', 'assignment')
+      .leftJoinAndSelect('assignment.provider', 'provider')
+      .leftJoinAndSelect('assignment.patient', 'patient')
+      .leftJoinAndSelect('assignment.service', 'service');
+  }
+
+  /**
+   * Alertas operativas (vigentes) para el panel: todo lo que NO sea, a la vez,
+   * de un servicio ya terminado y resuelto. Es decir, sigue acá si el servicio
+   * está en curso O si la alerta no se resolvió (una alerta sin resolver no
+   * desaparece sola, aunque el turno ya haya terminado). Carga prestador,
+   * persona a cuidar y servicio para el quién/qué de la grilla.
+   */
   listActive(): Promise<OperationalAlert[]> {
-    return this.alerts.find({
-      where: { status: In([AlertStatus.ABIERTA, AlertStatus.EN_GESTION]) },
-      relations: { assignment: true },
-      order: { createdAt: 'DESC' },
-    });
+    return this.alertsWithParties()
+      .where(
+        '(alert.status IN (:...unresolved) OR assignment.endTime IS NULL OR assignment.endTime > :now)',
+        {
+          unresolved: [AlertStatus.ABIERTA, AlertStatus.EN_GESTION],
+          now: new Date(),
+        },
+      )
+      .orderBy('alert.createdAt', 'DESC')
+      .getMany();
+  }
+
+  /**
+   * Historial de alertas: las de servicios ya terminados Y resueltas (o
+   * descartadas). Paginado, de la más reciente a la más antigua.
+   */
+  listHistory(pagination: PaginationDto): Promise<OperationalAlert[]> {
+    const { page, limit } = pagination;
+    return this.alertsWithParties()
+      .where('assignment.endTime <= :now', { now: new Date() })
+      .andWhere('alert.status IN (:...resolved)', {
+        resolved: [AlertStatus.RESUELTA, AlertStatus.DESCARTADA],
+      })
+      .orderBy('alert.resolvedAt', 'DESC')
+      .addOrderBy('alert.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
   }
 
   /** Marca una alerta como resuelta. */

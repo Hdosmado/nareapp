@@ -1,5 +1,5 @@
 import { Icon } from './Icon';
-import { Portal } from './Portal';
+import { Modal } from './Modal';
 
 /** Diálogo modal de confirmación para acciones destructivas. */
 export function ConfirmDialog({
@@ -18,17 +18,14 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   return (
-    <Portal>
-      <div className="overlay" onClick={onCancel}>
-        <div
-          className="modal modal--narrow"
-          onClick={(e) => e.stopPropagation()}
-          role="alertdialog"
-          aria-modal="true"
-        >
+    <Modal
+      onClose={onCancel}
+      className="modal--narrow"
+      role="alertdialog"
+      label={title}
+    >
         <div className="modal__head">
           <div>
-            <div className="eyebrow">Confirmación requerida</div>
             <div className="modal__title">{title}</div>
           </div>
         </div>
@@ -52,8 +49,6 @@ export function ConfirmDialog({
             {confirmLabel}
           </button>
         </div>
-        </div>
-      </div>
-    </Portal>
+    </Modal>
   );
 }

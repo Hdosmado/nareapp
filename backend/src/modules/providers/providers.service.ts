@@ -30,6 +30,14 @@ export class ProvidersService {
       throw new ConflictException('Ya existe un prestador con ese email');
     }
 
+    const dni = dto.dni?.trim();
+    if (dni) {
+      const dniExists = await this.providers.findOne({ where: { dni } });
+      if (dniExists) {
+        throw new ConflictException('Ya existe un prestador con ese DNI');
+      }
+    }
+
     const provider = await this.providers.save(
       this.providers.create({
         apellido: dto.apellido,
@@ -37,7 +45,10 @@ export class ProvidersService {
         tipoPrestador: dto.tipoPrestador,
         telefono: dto.telefono,
         email,
-        passwordHash: await bcrypt.hash(dto.password, 10),
+        dni,
+        passwordHash: dto.password
+          ? await bcrypt.hash(dto.password, 10)
+          : undefined,
         estado: ProviderStatus.ACTIVO,
       }),
     );
@@ -87,6 +98,17 @@ export class ProvidersService {
         }
       }
       provider.email = email;
+    }
+
+    if (dto.dni !== undefined) {
+      const dni = dto.dni.trim() || null;
+      if (dni && dni !== provider.dni) {
+        const exists = await this.providers.findOne({ where: { dni } });
+        if (exists) {
+          throw new ConflictException('Ya existe un prestador con ese DNI');
+        }
+      }
+      provider.dni = dni;
     }
 
     if (dto.password) {

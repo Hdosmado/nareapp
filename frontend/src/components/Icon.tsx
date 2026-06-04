@@ -36,7 +36,32 @@ export type IconName =
   | 'list'
   | 'qr'
   | 'copy'
-  | 'spinner';
+  | 'spinner'
+  // Dominio operativo NareApp
+  | 'gps-signal'
+  | 'gps-off'
+  | 'arrival'
+  | 'service-end'
+  | 'replacement'
+  | 'absence'
+  | 'tardiness'
+  | 'coverage'
+  | 'risk-gauge'
+  | 'route'
+  | 'provider'
+  | 'care-person'
+  | 'device'
+  | 'device-approved'
+  | 'document'
+  | 'message'
+  | 'filter'
+  | 'download'
+  | 'more-horizontal'
+  | 'external-link'
+  | 'info'
+  | 'check-circle'
+  | 'x-circle'
+  | 'calendar-check';
 
 /** Trazos de cada ícono sobre un viewBox 24×24. */
 const PATHS: Record<IconName, JSX.Element> = {
@@ -158,6 +183,170 @@ const PATHS: Record<IconName, JSX.Element> = {
     </>
   ),
   spinner: <path d="M21 12a9 9 0 1 1-6.2-8.5" />,
+
+  // Dominio operativo NareApp
+  'gps-signal': (
+    <>
+      <path d="M12 19.5c-3.5-4.5-5.5-7-5.5-9.5a5.5 5.5 0 1 1 11 0c0 2.5-2 5-5.5 9.5z" />
+      <circle cx="12" cy="10" r="2" />
+      <path d="M5 7a7 7 0 0 0 0 6M19 7a7 7 0 0 1 0 6" />
+    </>
+  ),
+  'gps-off': (
+    <>
+      <path d="M12 19.5c-3.5-4.5-5.5-7-5.5-9.5a5.5 5.5 0 0 1 8.8-4.3" />
+      <path d="M17.5 10c0 2.5-2 5-5.5 9.5" />
+      <line x1="3" y1="21" x2="21" y2="3" />
+    </>
+  ),
+  arrival: (
+    <>
+      <path d="M12 19.5c-3.5-4.5-5.5-7-5.5-9.5a5.5 5.5 0 1 1 11 0c0 2.5-2 5-5.5 9.5z" />
+      <path d="M9 10l2 2 4-4" />
+    </>
+  ),
+  'service-end': (
+    <>
+      <path d="M4 22v-20h16l-3 5 3 5h-16" />
+      <line x1="10" y1="2" x2="10" y2="12" />
+      <line x1="16" y1="2" x2="16" y2="12" />
+      <line x1="4" y1="7" x2="20" y2="7" />
+    </>
+  ),
+  replacement: (
+    <>
+      <path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-4v4h4" />
+      <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+    </>
+  ),
+  absence: (
+    <>
+      <circle cx="10" cy="7" r="4" />
+      <path d="M3 21v-2a7 7 0 0 1 10.7-6" />
+      <line x1="17" y1="16" x2="22" y2="21" />
+      <line x1="22" y1="16" x2="17" y2="21" />
+    </>
+  ),
+  tardiness: (
+    <>
+      <circle cx="11" cy="11" r="8" />
+      <polyline points="11 6 11 11 14 11" />
+      <line x1="21" y1="16" x2="21" y2="20" />
+      <line x1="21" y1="23" x2="21.01" y2="23" />
+    </>
+  ),
+  coverage: (
+    <>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 12l2 2 4-4" />
+    </>
+  ),
+  'risk-gauge': (
+    <>
+      <path d="M3 17a9 9 0 0 1 18 0" />
+      <path d="M12 17v-6" />
+      <circle cx="12" cy="17" r="1.5" />
+      <line x1="6" y1="11" x2="7" y2="12" />
+      <line x1="18" y1="11" x2="17" y2="12" />
+    </>
+  ),
+  route: (
+    <>
+      <path strokeDasharray="3 3" d="M3 18h4c2 0 4-2 4-4s-2-4-1-4 3-4 5-4h1" />
+      <path d="M19 12c-2-2.5-3.5-4.5-3.5-6a3.5 3.5 0 1 1 7 0c0 1.5-1.5 3.5-3.5 6z" />
+      <circle cx="19" cy="6" r="1.5" />
+    </>
+  ),
+  provider: (
+    <>
+      <circle cx="12" cy="6" r="3" />
+      <rect x="6" y="11" width="12" height="10" rx="1" />
+      <circle cx="12" cy="14" r="1.5" />
+      <line x1="9" y1="18" x2="15" y2="18" />
+    </>
+  ),
+  'care-person': (
+    <>
+      <path d="M12 13l-3.5-3.5a3.5 3.5 0 1 1 5-5L12 6l1.5-1.5a3.5 3.5 0 1 1 5 5z" />
+      <path d="M3 16h6l4 3h7v2H11l-3-2H3z" />
+    </>
+  ),
+  device: (
+    <>
+      <rect x="6" y="2" width="12" height="20" rx="2" ry="2" />
+      <line x1="10" y1="5" x2="14" y2="5" />
+      <line x1="11" y1="19" x2="13" y2="19" />
+    </>
+  ),
+  'device-approved': (
+    <>
+      <rect x="6" y="2" width="12" height="20" rx="2" ry="2" />
+      <path d="M9 12l2 2 4-4" />
+    </>
+  ),
+  document: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="16" y2="17" />
+      <line x1="8" y1="9" x2="10" y2="9" />
+    </>
+  ),
+  message: <path d="M21 11a9 9 0 0 1-9 9 9 9 0 0 1-4-1l-5 2 2-5a9 9 0 1 1 16-5z" />,
+  filter: (
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  ),
+  download: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </>
+  ),
+  'more-horizontal': (
+    <>
+      <circle cx="5" cy="12" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="19" cy="12" r="1.5" />
+    </>
+  ),
+  'external-link': (
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </>
+  ),
+  'check-circle': (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="8 12 11 15 16 9" />
+    </>
+  ),
+  'x-circle': (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+    </>
+  ),
+  'calendar-check': (
+    <>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <path d="M10 16l2 2 4-4" />
+    </>
+  ),
 };
 
 interface IconProps {

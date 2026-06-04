@@ -30,12 +30,18 @@ export function LoginPage() {
     <div className="login">
       <form className="login__card" onSubmit={onSubmit}>
         <div className="login__brand">
-          <div className="sidebar__logo">N</div>
+          <img
+            className="sidebar__logo sidebar__logo--lg"
+            src="/brand/logo.png"
+            alt="NareApp"
+            width={48}
+            height={48}
+          />
           <div>
             <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800 }}>
               NareApp
             </div>
-            <div className="eyebrow">Panel de coordinación</div>
+            <div className="login__tag">Panel de coordinación</div>
           </div>
         </div>
 

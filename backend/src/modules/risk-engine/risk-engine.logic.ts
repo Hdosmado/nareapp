@@ -20,6 +20,14 @@ export interface RiskThresholds {
    * lead de tracking es corto).
    */
   leadMin: number;
+  /**
+   * Ventana de gracia (minutos) para un reemplazo recién asignado, contada
+   * desde su asignación. Un reemplazo hereda el `startTime` del original, que
+   * puede estar vencido si se asignó durante el turno; sin esta gracia el motor
+   * lo marcaría de inmediato como ausencia probable. Mientras la gracia está
+   * activa no se escala por inicio vencido ni ausencia (`risk.replacement_grace_min`).
+   */
+  replacementGraceMin: number;
 }
 
 /** Variables de entrada para evaluar el riesgo de una asignación. */
@@ -30,6 +38,12 @@ export interface RiskInputs {
   hasFreshSignal: boolean;
   hasAnySignal: boolean;
   distanceToAddress: number | null;
+  /**
+   * La asignación es un reemplazo dentro de su ventana de gracia (recién
+   * asignado). Mientras es verdadero, no se escala por inicio vencido ni
+   * ausencia probable: se le da margen al prestador entrante para llegar.
+   */
+  replacementGraceActive: boolean;
 }
 
 export interface RiskAlert {
@@ -71,6 +85,14 @@ export function decideRisk(
   // Fuera de la ventana de observación: todavía no se evalúa.
   if (inputs.minutesToStart > thresholds.observationLead) {
     return plain(AssignmentStatus.PENDIENTE, RiskLevel.VERDE);
+  }
+
+  // Reemplazo recién asignado: hereda el `startTime` del original (posiblemente
+  // vencido), pero el prestador entrante necesita tiempo para llegar. Mientras
+  // dura la gracia no se lo marca como inicio vencido ni ausencia probable; se
+  // lo deja como próximo y verde. Vencida la gracia, caen las reglas normales.
+  if (inputs.replacementGraceActive && inputs.minutesToStart <= 0) {
+    return plain(AssignmentStatus.PROXIMO, RiskLevel.VERDE);
   }
 
   // Pasó la hora de inicio más la tolerancia, sin "LLEGUÉ": ausencia probable.

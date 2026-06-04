@@ -7,14 +7,27 @@ import { Icon, type IconName } from '../components/Icon';
 import { StatusChip } from '../components/StatusChip';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RelationSelect } from '../components/RelationSelect';
+import {
+  FieldEventDetailModal,
+  type FieldEventKind,
+} from '../components/FieldEventDetailModal';
 import { useToast } from '../components/ToastProvider';
 import { ErrorState } from '../components/states';
+import { describeProximity, haversineMeters, readPoint } from '../lib/geo';
+import { alertTypeLabel } from '../lib/alerts';
 import type { RefDef } from '../lib/refs';
 
 /** Referencia para el selector de prestador de reemplazo. */
 const PROVIDER_REF: RefDef = {
   resource: 'providers',
   labelKeys: ['apellido', 'nombre'],
+};
+
+/** Conexión del equipo en una palabra, para la línea de tiempo. */
+const CONNECTIVITY_SHORT: Record<string, string> = {
+  online: 'Con señal',
+  offline: 'Sin señal',
+  unknown: 'Conexión desconocida',
 };
 
 /** Primer valor presente entre varias claves candidatas. */
@@ -51,6 +64,8 @@ interface TimelineEntry {
   title: string;
   text: string;
   tone: string;
+  event: Row;
+  kind: FieldEventKind;
 }
 
 /** Resultado de la ficha: una asignación operativa o un servicio sin asignar. */
@@ -61,8 +76,8 @@ interface DetailResult {
 
 /** Acción de coordinación pendiente de confirmación. */
 type Pending =
+  | { type: 'assign-provider' }
   | { type: 'mark-contacted' }
-  | { type: 'require-replacement' }
   | { type: 'assign-replacement' }
   | { type: 'resolve-alert'; alertId: string; alertLabel: string };
 
@@ -105,6 +120,11 @@ export function ServiceDetailPage() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [replacementProvider, setReplacementProvider] = useState('');
+  const [newProvider, setNewProvider] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState<{
+    event: Row;
+    kind: FieldEventKind;
+  } | null>(null);
 
   const patient = pickObject(detail, ['patient', 'persona', 'paciente']);
   const address = pickObject(detail, [
@@ -119,6 +139,23 @@ export function ServiceDetailPage() {
   const risk = pick(detail, ['riskLevel', 'risk', 'nivelRiesgo']);
 
   const timeline = useMemo<TimelineEntry[]>(() => {
+    const home = readPoint(address ?? null);
+    const distanceOf = (ev: Row, precomputed?: unknown): number | null => {
+      if (typeof precomputed === 'number' && Number.isFinite(precomputed)) {
+        return precomputed;
+      }
+      const point = readPoint(ev);
+      if (home && point) {
+        return haversineMeters(
+          home.latitude,
+          home.longitude,
+          point.latitude,
+          point.longitude,
+        );
+      }
+      return null;
+    };
+
     const attendance = pickArray(detail, [
       'attendanceEvents',
       'attendance',
@@ -130,31 +167,49 @@ export function ServiceDetailPage() {
       'eventosUbicacion',
     ]);
     const entries: TimelineEntry[] = [];
+
     for (const ev of attendance) {
+      const isCheckIn = String(pick(ev, ['type']) ?? '') === 'check_in';
+      const inside = pick(ev, ['insideAllowedRadius']);
+      const mocked = pick(ev, ['isMocked']) === true;
+      const dist = distanceOf(ev, pick(ev, ['distanceToAddress']));
+      const bits: string[] = [];
+      if (inside === true) bits.push('Dentro del radio permitido');
+      else if (inside === false) bits.push('Fuera del radio permitido');
+      if (dist !== null) bits.push(describeProximity(dist));
       entries.push({
         time: pick(ev, ['timestampServer', 'timestampLocal', 'createdAt']),
-        title: `Asistencia · ${humanize(String(pick(ev, ['type']) ?? 'evento'))}`,
-        text:
-          pick(ev, ['insideAllowedRadius']) === false
-            ? 'Registrado fuera del radio permitido.'
-            : 'Registrado dentro del radio permitido.',
-        tone: pick(ev, ['insideAllowedRadius']) === false ? 'naranja' : 'verde',
+        title: isCheckIn ? 'Llegada registrada' : 'Fin de servicio',
+        text: bits.join(' · ') || 'Confirmación registrada por el prestador.',
+        tone: mocked ? 'rojo' : inside === false ? 'naranja' : 'verde',
+        event: ev,
+        kind: 'attendance',
       });
     }
+
     for (const ev of locations) {
+      const suspicious =
+        pick(ev, ['suspicious']) === true || pick(ev, ['isMocked']) === true;
+      const geofence = pick(ev, ['insideGeofence']);
+      const connectivity = String(pick(ev, ['connectivityStatus']) ?? 'unknown');
+      const dist = distanceOf(ev);
+      const bits: string[] = [CONNECTIVITY_SHORT[connectivity] ?? 'Conexión desconocida'];
+      if (dist !== null) bits.push(describeProximity(dist));
+      if (suspicious) bits.push('latido sospechoso');
       entries.push({
         time: pick(ev, ['timestampServer', 'timestampLocal', 'createdAt']),
-        title: 'Punto de ubicación',
-        text: `Conectividad: ${humanize(
-          String(pick(ev, ['connectivityStatus']) ?? 'desconocida'),
-        )}`,
-        tone: 'accent',
+        title: 'Punto de seguimiento',
+        text: bits.join(' · '),
+        tone: suspicious ? 'rojo' : geofence === false ? 'naranja' : 'accent',
+        event: ev,
+        kind: 'location',
       });
     }
+
     return entries
       .filter((e) => e.time)
       .sort((a, b) => String(b.time).localeCompare(String(a.time)));
-  }, [detail]);
+  }, [detail, address]);
 
   // Alertas activas que corresponden a esta asignación.
   const alerts = useMemo<Row[]>(() => {
@@ -175,18 +230,25 @@ export function ServiceDetailPage() {
     if (!pending) return;
     setBusy(true);
     try {
-      if (pending.type === 'mark-contacted') {
+      if (pending.type === 'assign-provider') {
+        // La asignación nace con id propio (distinto al del servicio). Tras
+        // crearla, se navega a su ficha para mostrar la vista operativa
+        // (tracking, eventos, alertas y semáforo cuelgan del assignmentId).
+        const created = await apiFetch<Row>('/coordination/assignments', {
+          method: 'POST',
+          body: JSON.stringify({ serviceId: id, providerId: newProvider }),
+        });
+        notify('Prestador asignado. Se creó la asignación operativa.');
+        setNewProvider('');
+        invalidateAfterAction();
+        navigate(`/servicio/${String(created.id)}`, { replace: true });
+        return;
+      } else if (pending.type === 'mark-contacted') {
         await apiFetch(`/coordination/services/${id}/mark-contacted`, {
           method: 'POST',
           body: JSON.stringify({}),
         });
         notify('Se registró el contacto con el prestador.');
-      } else if (pending.type === 'require-replacement') {
-        await apiFetch(`/coordination/services/${id}/require-replacement`, {
-          method: 'POST',
-          body: JSON.stringify({}),
-        });
-        notify('El servicio quedó marcado como que requiere reemplazo.');
       } else if (pending.type === 'assign-replacement') {
         await apiFetch(`/coordination/services/${id}/assign-replacement`, {
           method: 'POST',
@@ -219,19 +281,19 @@ export function ServiceDetailPage() {
     label: string;
   } {
     switch (p.type) {
+      case 'assign-provider':
+        return {
+          title: 'Asignar prestador',
+          message:
+            'Se va a crear la asignación operativa del servicio con el prestador seleccionado. Persona, domicilio y horario se copian del servicio. ¿Confirmás la acción?',
+          label: 'Asignar prestador',
+        };
       case 'mark-contacted':
         return {
           title: 'Marcar contactado',
           message:
             'Se va a registrar que coordinación contactó al prestador de este servicio. ¿Confirmás la acción?',
           label: 'Marcar contactado',
-        };
-      case 'require-replacement':
-        return {
-          title: 'Requiere reemplazo',
-          message:
-            'El servicio va a quedar marcado como que requiere un reemplazo. ¿Confirmás la acción?',
-          label: 'Marcar reemplazo',
         };
       case 'assign-replacement':
         return {
@@ -258,15 +320,15 @@ export function ServiceDetailPage() {
 
       <div className="pagehead">
         <div>
-          <div className="eyebrow">
-            {isAssignment ? 'Servicio asignado' : 'Ficha de servicio'}
-          </div>
           <h1 className="pagehead__title">
             {String(
               pick(service, ['ciudad', 'city']) ?? 'Servicio domiciliario',
             )}
           </h1>
-          <p className="pagehead__desc mono">{id}</p>
+          <p className="pagehead__desc">
+            {isAssignment ? 'Servicio asignado' : 'Ficha de servicio'} ·{' '}
+            <span className="mono">{id}</span>
+          </p>
         </div>
         <div className="pagehead__actions">
           {status !== undefined && <StatusChip value={status} />}
@@ -436,16 +498,6 @@ export function ServiceDetailPage() {
                       <Icon name="phone" size={15} />
                       Marcar contactado
                     </button>
-                    <button
-                      className="btn"
-                      disabled={busy}
-                      onClick={() =>
-                        setPending({ type: 'require-replacement' })
-                      }
-                    >
-                      <Icon name="alert" size={15} />
-                      Requiere reemplazo
-                    </button>
                   </div>
 
                   <div className="stack gap-2">
@@ -460,6 +512,9 @@ export function ServiceDetailPage() {
                       refDef={PROVIDER_REF}
                       value={replacementProvider}
                       onChange={setReplacementProvider}
+                      excludeId={
+                        provider ? String(provider.id ?? '') : undefined
+                      }
                     />
                     <button
                       className="btn btn--primary"
@@ -477,14 +532,38 @@ export function ServiceDetailPage() {
             )}
 
             {!isAssignment && (
-              <div className="banner banner--info">
-                <Icon name="lock" size={16} className="banner__icon" />
-                <span>
-                  Este servicio todavía no tiene una asignación operativa. Las
-                  acciones de coordinación se habilitan al ingresar desde el
-                  tablero o la agenda.
-                </span>
-              </div>
+              <section className="card">
+                <div className="card__head">
+                  <div className="card__title">Asignar prestador</div>
+                </div>
+                <div className="card__body stack gap-3">
+                  <p className="muted" style={{ fontSize: 13 }}>
+                    Este servicio todavía no tiene una asignación operativa.
+                    Elegí un prestador para crearla: el tracking, los eventos de
+                    campo, las alertas y el semáforo de riesgo cuelgan de la
+                    asignación y se habilitan al asignarlo.
+                  </p>
+                  <div className="stack gap-2">
+                    <label className="field__label" htmlFor="assign-provider">
+                      <b>Prestador</b>
+                    </label>
+                    <RelationSelect
+                      id="assign-provider"
+                      refDef={PROVIDER_REF}
+                      value={newProvider}
+                      onChange={setNewProvider}
+                    />
+                    <button
+                      className="btn btn--primary"
+                      disabled={busy || !newProvider}
+                      onClick={() => setPending({ type: 'assign-provider' })}
+                    >
+                      <Icon name="plus" size={15} />
+                      Asignar prestador
+                    </button>
+                  </div>
+                </div>
+              </section>
             )}
           </div>
 
@@ -512,7 +591,7 @@ export function ServiceDetailPage() {
                   <div className="stack gap-2">
                     {alerts.map((alert, i) => {
                       const alertId = String(alert.id ?? '');
-                      const alertLabel = humanize(
+                      const alertLabel = alertTypeLabel(
                         String(pick(alert, ['type']) ?? 'Alerta'),
                       );
                       return (
@@ -562,7 +641,17 @@ export function ServiceDetailPage() {
                 ) : (
                   <div className="timeline">
                     {timeline.map((entry, i) => (
-                      <div key={i} className="timeline__item">
+                      <button
+                        type="button"
+                        key={i}
+                        className="timeline__item timeline__item--clickable"
+                        onClick={() =>
+                          setSelectedEvent({
+                            event: entry.event,
+                            kind: entry.kind,
+                          })
+                        }
+                      >
                         <span
                           className={`timeline__dot ${toneClass(entry.tone)}`}
                         />
@@ -571,7 +660,11 @@ export function ServiceDetailPage() {
                         </div>
                         <div className="timeline__title">{entry.title}</div>
                         <div className="timeline__text">{entry.text}</div>
-                      </div>
+                        <span className="timeline__more">
+                          Ver detalle
+                          <Icon name="chevron-right" size={13} />
+                        </span>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -589,6 +682,15 @@ export function ServiceDetailPage() {
           busy={busy}
           onConfirm={runPending}
           onCancel={() => setPending(null)}
+        />
+      )}
+
+      {selectedEvent && (
+        <FieldEventDetailModal
+          event={selectedEvent.event}
+          kind={selectedEvent.kind}
+          address={address ?? null}
+          onClose={() => setSelectedEvent(null)}
         />
       )}
     </div>

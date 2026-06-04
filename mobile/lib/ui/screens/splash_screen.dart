@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/colors.dart';
 import '../../core/theme/spacing.dart';
-import '../widgets/wordmark.dart';
+import '../widgets/brand_mark.dart';
 
 /// Pantalla de arranque mientras se lee la sesión guardada.
 class SplashScreen extends StatelessWidget {
@@ -16,8 +16,8 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            NareWordmark(fontSize: 44),
-            SizedBox(height: Insets.x6),
+            BrandLockup(markSize: 84, wordmarkSize: 44),
+            SizedBox(height: Insets.x7),
             SizedBox(
               width: 24,
               height: 24,

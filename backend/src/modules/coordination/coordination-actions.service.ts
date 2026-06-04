@@ -26,9 +26,25 @@ export class CoordinationActionsService {
     );
   }
 
+  /**
+   * Lista la bitácora de acciones para el panel. Carga el coordinador
+   * responsable y el servicio asignado con su prestador, persona a cuidar y
+   * (cuando la acción es un reemplazo) el prestador original, para que la
+   * pantalla muestre el quién/qué/sobre-qué de un vistazo en lugar de un evento
+   * sin contexto.
+   */
   findAll(pagination: PaginationDto): Promise<CoordinationAction[]> {
     const { page, limit } = pagination;
     return this.actions.find({
+      relations: {
+        coordinator: true,
+        assignment: {
+          provider: true,
+          patient: true,
+          service: true,
+          originalAssignment: { provider: true },
+        },
+      },
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,

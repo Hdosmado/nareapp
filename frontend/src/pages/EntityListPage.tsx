@@ -134,9 +134,6 @@ export function EntityListPage({ resourceKey }: { resourceKey: string }) {
     <div className="page">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">
-            {resource.index} · {resource.group}
-          </div>
           <h1 className="pagehead__title">{resource.label}</h1>
           <p className="pagehead__desc">{resource.description}</p>
         </div>

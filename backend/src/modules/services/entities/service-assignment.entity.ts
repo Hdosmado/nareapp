@@ -13,7 +13,7 @@ import { Service } from './service.entity';
 @Index(['startTime', 'status'])
 @Entity('service_assignments')
 export class ServiceAssignment extends BaseEntity {
-  @ManyToOne(() => Service)
+  @ManyToOne(() => Service, (service) => service.assignments)
   service: Service;
 
   @ManyToOne(() => Provider, { nullable: true })

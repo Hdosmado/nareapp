@@ -2,6 +2,7 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MinLength,
@@ -26,9 +27,17 @@ export class CreateProviderDto {
   @IsEmail()
   email: string;
 
+  // Documento de identidad. Obligatorio y único por persona.
+  @IsString()
+  @IsNotEmpty()
+  dni: string;
+
+  // Heredada y opcional: el prestador activa su credencial por dispositivo
+  // (código de 8 dígitos / QR), no por contraseña en el alta.
+  @IsOptional()
   @IsString()
   @MinLength(6)
-  password: string;
+  password?: string;
 
   @IsOptional()
   @IsArray()

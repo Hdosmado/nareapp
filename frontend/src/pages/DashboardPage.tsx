@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { formatDateTime, getValue, humanize, type Row } from '../lib/format';
-import { AssignmentStatus, riskTone } from '../lib/enums';
+import { AssignmentStatus } from '../lib/enums';
 import { Icon, type IconName } from '../components/Icon';
 import { StatusChip } from '../components/StatusChip';
+import { Semaforo } from '../components/Semaforo';
 import { CardSkeleton, EmptyState, ErrorState } from '../components/states';
+import { onActivate } from '../lib/a11y';
 
 interface DashboardSummary {
   totalHoy: number;
@@ -44,7 +46,7 @@ const KPIS: KpiDef[] = [
     label: 'Próximos',
     icon: 'clock',
     tone: 'blue',
-    to: '/r/assignments?status=proximo',
+    to: '/servicios?status=proximo',
     meta: 'Aún sin comenzar',
   },
   {
@@ -52,7 +54,7 @@ const KPIS: KpiDef[] = [
     label: 'En servicio',
     icon: 'activity',
     tone: 'verde',
-    to: '/r/assignments?status=en_servicio',
+    to: '/servicios?status=en_servicio',
     meta: 'En curso ahora',
   },
   {
@@ -60,7 +62,7 @@ const KPIS: KpiDef[] = [
     label: 'Finalizados',
     icon: 'check',
     tone: 'verde',
-    to: '/r/assignments?status=finalizado',
+    to: '/servicios?status=finalizado',
     meta: 'Completados hoy',
   },
   {
@@ -68,7 +70,7 @@ const KPIS: KpiDef[] = [
     label: 'En riesgo',
     icon: 'alert',
     tone: 'rojo',
-    to: '/r/assignments?status=en_riesgo',
+    to: '/servicios?status=en_riesgo',
     meta: 'Requieren atención',
   },
   {
@@ -76,7 +78,7 @@ const KPIS: KpiDef[] = [
     label: 'Demorados',
     icon: 'clock',
     tone: 'naranja',
-    to: '/r/assignments?status=demorado',
+    to: '/servicios?status=demorado',
     meta: 'Fuera de horario',
   },
   {
@@ -84,16 +86,8 @@ const KPIS: KpiDef[] = [
     label: 'Ausencia probable',
     icon: 'alert',
     tone: 'naranja',
-    to: '/r/assignments?status=ausente_probable',
+    to: '/servicios?status=ausente_probable',
     meta: 'Sin confirmación',
-  },
-  {
-    key: 'requierenReemplazo',
-    label: 'Requieren reemplazo',
-    icon: 'refresh',
-    tone: 'rojo',
-    to: '/r/assignments',
-    meta: 'Gestionar cobertura',
   },
 ];
 
@@ -206,7 +200,6 @@ export function DashboardPage() {
     <div className="page">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">Resumen operativo</div>
           <h1 className="pagehead__title">Tablero operativo</h1>
           <p className="pagehead__desc">
             Estado de las asignaciones del día en la zona horaria de Argentina.
@@ -405,9 +398,16 @@ export function DashboardPage() {
                       <tr
                         key={String(row.id ?? i)}
                         className="is-clickable"
+                        tabIndex={0}
+                        aria-label={`Abrir servicio: ${
+                          rowCity(row) || 'servicio'
+                        }`}
                         onClick={() =>
                           navigate(`/servicio/${String(row.id)}`)
                         }
+                        onKeyDown={onActivate(() =>
+                          navigate(`/servicio/${String(row.id)}`),
+                        )}
                       >
                         <td className="cell-strong">
                           {rowCity(row) || 'Servicio'}
@@ -494,23 +494,5 @@ export function DashboardPage() {
         </section>
       </div>
     </div>
-  );
-}
-
-/**
- * Indicador de semáforo de riesgo. El nivel se muestra como texto además del
- * color, para que sea legible sin depender únicamente del color.
- */
-function Semaforo({ value }: { value: unknown }) {
-  if (value === null || value === undefined || value === '') {
-    return <span className="muted">—</span>;
-  }
-  const level = String(value).toLowerCase();
-  const tone = riskTone(level);
-  return (
-    <span className={`semaforo semaforo--${tone}`} title={`Riesgo ${level}`}>
-      <span className="semaforo__dot" aria-hidden="true" />
-      {humanize(level)}
-    </span>
   );
 }

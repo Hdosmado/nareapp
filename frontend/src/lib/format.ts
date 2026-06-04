@@ -23,6 +23,77 @@ export function formatDateTime(value: unknown): string {
     year: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
+  });
+}
+
+/** Zona de presentación del dominio (los timestamps llegan en UTC). */
+const APP_TIMEZONE = 'America/Argentina/Buenos_Aires';
+
+/** Hora del día (HH:MM) en la zona operativa. */
+export function formatTime(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const date = new Date(value as string);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: APP_TIMEZONE,
+    hour12: false,
+  });
+}
+
+/** Fecha corta (día y mes) en la zona operativa. */
+export function formatDateShort(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const date = new Date(value as string);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: APP_TIMEZONE,
+  });
+}
+
+/** Rango horario «HH:MM a HH:MM» de un servicio, en la zona operativa. */
+export function formatTimeRange(start: unknown, end: unknown): string {
+  const from = formatTime(start);
+  const to = formatTime(end);
+  if (from === '—') return to === '—' ? '—' : to;
+  if (to === '—') return from;
+  return `${from} a ${to}`;
+}
+
+/** Clave de día calendario (YYYY-MM-DD) en la zona operativa, para agrupar. */
+export function dayKey(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  const date = new Date(value as string);
+  if (Number.isNaN(date.getTime())) return '';
+  // en-CA da el formato ISO YYYY-MM-DD, estable para comparar y agrupar.
+  return date.toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE });
+}
+
+/**
+ * Etiqueta del encabezado de un grupo de días: «Hoy» / «Ayer» para los dos
+ * últimos, y «miércoles 3 jun» para el resto, en la zona operativa.
+ */
+export function dayLabel(value: unknown): string {
+  const key = dayKey(value);
+  if (!key) return '—';
+  const now = Date.now();
+  const today = new Date(now).toLocaleDateString('en-CA', {
+    timeZone: APP_TIMEZONE,
+  });
+  const yesterday = new Date(now - 86_400_000).toLocaleDateString('en-CA', {
+    timeZone: APP_TIMEZONE,
+  });
+  if (key === today) return 'Hoy';
+  if (key === yesterday) return 'Ayer';
+  return new Date(value as string).toLocaleDateString('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    timeZone: APP_TIMEZONE,
   });
 }
 
@@ -59,7 +130,10 @@ export function chipTone(value: string): string {
   if (ORANGE.includes(v)) return 'naranja';
   if (YELLOW.includes(v)) return 'amarillo';
   if (GREEN.includes(v)) return 'verde';
-  return 'accent';
+  // Lo que no es riesgo es metadato (tipo de dato, plataforma, categoría):
+  // va en neutro, no en coral. El coral está reservado para la acción
+  // (Regla de la Voz Única / de la Forma); un chip de estado nunca lo toma.
+  return 'neutral';
 }
 
 /** Texto legible: reemplaza guiones bajos por espacios. */

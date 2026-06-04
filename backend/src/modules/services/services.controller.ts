@@ -10,9 +10,9 @@ import {
 } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
-import { PaginationDto } from '../../common/dto/pagination.dto';
 import { UserRole } from '../../common/enums';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { QueryServiceListDto } from './dto/query-service-list.dto';
 import { QueryServicesDto } from './dto/query-services.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
@@ -28,10 +28,10 @@ export class ServicesController {
     return this.services.createService(dto);
   }
 
-  /** Listado paginado de servicios para el backoffice. */
+  /** Listado paginado de servicios para el backoffice, con asignación activa. */
   @Get()
-  findAll(@Query() pagination: PaginationDto) {
-    return this.services.findAllServices(pagination);
+  findAll(@Query() query: QueryServiceListDto) {
+    return this.services.findAllServices(query);
   }
 
   /** Asignaciones del día (rutas estáticas declaradas antes que `:id`). */

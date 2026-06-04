@@ -8,6 +8,7 @@ import '../../../data/api/api_exception.dart';
 import '../../../state/providers.dart';
 import '../../../state/session_controller.dart';
 import '../../widgets/banner.dart';
+import '../../widgets/brand_mark.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/code_field.dart';
 import '../../widgets/nare_text_field.dart';
@@ -173,7 +174,13 @@ class _ActivatePhoneScreenState extends ConsumerState<ActivatePhoneScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const NareWordmark(fontSize: 38),
+                    Row(
+                      children: const [
+                        BrandMark(size: 52),
+                        SizedBox(width: Insets.x3),
+                        NareWordmark(fontSize: 34),
+                      ],
+                    ),
                     const SizedBox(height: Insets.x7),
                     Text('Activar mi teléfono', style: AppText.h1),
                     const SizedBox(height: Insets.x3),

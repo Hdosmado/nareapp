@@ -180,7 +180,22 @@ export function AddressLocationPicker({
           )}
         </div>
 
-        {label && <div className="geopicker__label muted">{label}</div>}
+        {candidates.length > 1 && (
+          <ul className="geopicker__list">
+            {candidates.map((c, i) => (
+              <li key={`${c.latitude},${c.longitude},${i}`}>
+                <button
+                  type="button"
+                  className="geopicker__option"
+                  onClick={() => pick(c)}
+                >
+                  <Icon name="pin" size={13} />
+                  <span>{c.displayName}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {status === 'empty' && (
           <div className="banner banner--warn">
@@ -198,22 +213,7 @@ export function AddressLocationPicker({
           </div>
         )}
 
-        {candidates.length > 1 && (
-          <ul className="geopicker__list">
-            {candidates.map((c, i) => (
-              <li key={`${c.latitude},${c.longitude},${i}`}>
-                <button
-                  type="button"
-                  className="geopicker__option"
-                  onClick={() => pick(c)}
-                >
-                  <Icon name="pin" size={13} />
-                  <span>{c.displayName}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        {label && <div className="geopicker__label muted">{label}</div>}
 
         <div className="geopicker__map">
           <MapContainer

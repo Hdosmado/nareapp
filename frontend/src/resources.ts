@@ -18,14 +18,12 @@ import {
   AlertStatus,
   AlertType,
   AppConfigType,
-  AssignmentStatus,
   AttendanceType,
   ConnectivityStatus,
   CoordinationActionType,
   DevicePlatform,
   DeviceStatus,
   ProviderType,
-  RiskLevel,
   UserRole,
   UserStatus,
 } from './lib/enums';
@@ -67,6 +65,19 @@ export interface FieldDef {
    * dibuja como input suelto.
    */
   managed?: boolean;
+  /**
+   * El valor lo calcula el sistema (ej. el motor de riesgo escribe estado y
+   * riesgo): se muestra como dato administrado de sólo lectura, con su sello, y
+   * nunca se envía desde el panel. Implica `readOnly`.
+   */
+  systemManaged?: boolean;
+  /**
+   * El campo no pertenece al recurso, sino a la asignación operativa que cuelga
+   * de él: el formulario lo edita junto al servicio y, tras crear el servicio,
+   * el panel crea la asignación con `POST /coordination/assignments`
+   * (`serviceId` + `providerId`). Nunca viaja en el payload del recurso.
+   */
+  assignmentCompanion?: boolean;
 }
 
 export type ColumnKind =
@@ -89,16 +100,28 @@ export interface ResourceDef {
   label: string;
   singular: string;
   group: string;
-  index: string;
   icon: IconName;
   description: string;
   columns: ColumnDef[];
   fields: FieldDef[];
   searchKeys: string[];
+  /**
+   * Ruta propia del recurso en el panel. Cuando se define, el menú y el
+   * buscador enlazan acá en vez de a la lista genérica `/r/<key>` (se usa para
+   * recursos con pantalla dedicada, como las alertas operativas).
+   */
+  route?: string;
   /** Entidad inmutable: el panel sólo permite consultarla. */
   readonly?: boolean;
   /** Advertencia para entidades de log/evento inmutables. */
   immutableNote?: string;
+  /**
+   * Oculta el recurso del menú lateral. Se usa para los eventos de campo
+   * (asistencia y ubicación), que coordinación consulta dentro de la ficha de
+   * servicio (con mapa y lectura operativa), no como una lista plana de datos
+   * crudos de GPS. El recurso sigue existiendo para auditoría.
+   */
+  hideFromNav?: boolean;
 }
 
 const IMMUTABLE =
@@ -106,48 +129,17 @@ const IMMUTABLE =
 
 export const RESOURCES: ResourceDef[] = [
   {
-    key: 'users',
-    path: '/coordination/users',
-    label: 'Usuarios del panel',
-    singular: 'usuario',
-    group: 'Personas',
-    index: '01',
-    icon: 'users',
-    description: 'Cuentas de coordinación con acceso al backoffice.',
-    columns: [
-      { key: 'nombre', label: 'Nombre', kind: 'strong' },
-      { key: 'email', label: 'Email', kind: 'mono' },
-      { key: 'rol', label: 'Rol', kind: 'chip' },
-      { key: 'estado', label: 'Estado', kind: 'chip' },
-      { key: 'createdAt', label: 'Alta', kind: 'datetime' },
-    ],
-    fields: [
-      { name: 'nombre', label: 'Nombre', type: 'text', required: true },
-      { name: 'email', label: 'Email', type: 'email', required: true },
-      {
-        name: 'password',
-        label: 'Contraseña',
-        type: 'password',
-        required: true,
-        hint: 'Mínimo 6 caracteres. Al editar, dejar vacío para no cambiarla.',
-      },
-      { name: 'rol', label: 'Rol', type: 'select', options: UserRole },
-      { name: 'estado', label: 'Estado', type: 'select', options: UserStatus },
-    ],
-    searchKeys: ['nombre', 'email', 'rol'],
-  },
-  {
     key: 'providers',
     path: '/coordination/providers',
     label: 'Prestadores',
     singular: 'prestador',
     group: 'Personas',
-    index: '02',
     icon: 'users',
     description: 'Personal que ejecuta los servicios domiciliarios.',
     columns: [
       { key: 'apellido', label: 'Apellido', kind: 'strong' },
       { key: 'nombre', label: 'Nombre' },
+      { key: 'dni', label: 'DNI', kind: 'mono' },
       { key: 'tipoPrestador', label: 'Tipo', kind: 'chip' },
       { key: 'email', label: 'Email', kind: 'mono' },
       { key: 'estado', label: 'Estado', kind: 'chip' },
@@ -155,6 +147,12 @@ export const RESOURCES: ResourceDef[] = [
     fields: [
       { name: 'apellido', label: 'Apellido', type: 'text', required: true },
       { name: 'nombre', label: 'Nombre', type: 'text', required: true },
+      {
+        name: 'dni',
+        label: 'DNI',
+        type: 'text',
+        required: true,
+      },
       {
         name: 'tipoPrestador',
         label: 'Tipo de prestador',
@@ -164,47 +162,8 @@ export const RESOURCES: ResourceDef[] = [
       },
       { name: 'telefono', label: 'Teléfono', type: 'text' },
       { name: 'email', label: 'Email', type: 'email', required: true },
-      {
-        name: 'password',
-        label: 'Contraseña',
-        type: 'password',
-        required: true,
-        hint: 'Mínimo 6 caracteres. Al editar, dejar vacío para no cambiarla.',
-      },
     ],
-    searchKeys: ['apellido', 'nombre', 'email', 'tipoPrestador'],
-  },
-  {
-    key: 'provider-roles',
-    path: '/coordination/provider-roles',
-    label: 'Roles de prestador',
-    singular: 'rol de prestador',
-    group: 'Personas',
-    index: '03',
-    icon: 'briefcase',
-    description: 'Roles operativos asignados a cada prestador.',
-    columns: [
-      { key: 'provider.apellido', label: 'Prestador', kind: 'strong' },
-      { key: 'provider.nombre', label: 'Nombre' },
-      { key: 'rol', label: 'Rol', kind: 'chip' },
-      { key: 'createdAt', label: 'Alta', kind: 'datetime' },
-    ],
-    fields: [
-      {
-        name: 'providerId',
-        label: 'Prestador',
-        type: 'uuid',
-        required: true,
-      },
-      {
-        name: 'rol',
-        label: 'Rol',
-        type: 'select',
-        options: ProviderType,
-        required: true,
-      },
-    ],
-    searchKeys: ['rol'],
+    searchKeys: ['apellido', 'nombre', 'dni', 'email', 'tipoPrestador'],
   },
   {
     key: 'patients',
@@ -212,74 +171,47 @@ export const RESOURCES: ResourceDef[] = [
     label: 'Personas a cuidar',
     singular: 'persona a cuidar',
     group: 'Personas',
-    index: '04',
     icon: 'users',
     description: 'Destinatarios de las prestaciones de cuidado.',
     columns: [
       { key: 'apellido', label: 'Apellido', kind: 'strong' },
       { key: 'nombre', label: 'Nombre' },
+      { key: 'dni', label: 'DNI', kind: 'mono' },
       { key: 'telefonoContacto', label: 'Teléfono', kind: 'mono' },
       { key: 'estado', label: 'Estado', kind: 'chip' },
     ],
     fields: [
       { name: 'apellido', label: 'Apellido', type: 'text', required: true },
       { name: 'nombre', label: 'Nombre', type: 'text', required: true },
+      { name: 'dni', label: 'DNI', type: 'text', required: true },
+      {
+        name: 'fechaNacimiento',
+        label: 'Fecha de nacimiento',
+        type: 'date',
+      },
       {
         name: 'telefonoContacto',
         label: 'Teléfono de contacto',
         type: 'text',
       },
-    ],
-    searchKeys: ['apellido', 'nombre'],
-  },
-  {
-    key: 'patient-addresses',
-    path: '/coordination/patient-addresses',
-    label: 'Domicilios',
-    singular: 'domicilio',
-    group: 'Personas',
-    index: '05',
-    icon: 'pin',
-    description: 'Domicilios donde se prestan los servicios.',
-    columns: [
-      { key: 'calle', label: 'Calle', kind: 'strong' },
-      { key: 'ciudad', label: 'Ciudad' },
-      { key: 'provincia', label: 'Provincia' },
-      { key: 'allowedRadiusM', label: 'Radio (m)', kind: 'mono' },
-    ],
-    fields: [
       {
-        name: 'patientId',
-        label: 'Persona a cuidar',
-        type: 'uuid',
-        required: true,
-      },
-      {
-        name: 'calle',
-        label: 'Calle',
+        name: 'contactoEmergenciaNombre',
+        label: 'Contacto de emergencia',
         type: 'text',
-        required: true,
-        wide: true,
       },
-      { name: 'ciudad', label: 'Ciudad', type: 'text', required: true },
-      { name: 'provincia', label: 'Provincia', type: 'text', required: true },
       {
-        name: 'ubicacion',
-        label: 'Ubicación',
-        type: 'geocode',
-        wide: true,
-        hint: 'Se calcula sola desde la dirección. Buscá y, si hace falta, arrastrá el pin.',
+        name: 'contactoEmergenciaTelefono',
+        label: 'Teléfono de emergencia',
+        type: 'text',
       },
-      { name: 'latitude', label: 'Latitud', type: 'number', managed: true },
-      { name: 'longitude', label: 'Longitud', type: 'number', managed: true },
       {
-        name: 'allowedRadiusM',
-        label: 'Radio permitido (m)',
-        type: 'number',
-        hint: 'Entre 20 y 2000. Por defecto 150.',
+        name: 'observaciones',
+        label: 'Observaciones de cuidado',
+        type: 'textarea',
+        wide: true,
       },
     ],
-    searchKeys: ['calle', 'ciudad', 'provincia'],
+    searchKeys: ['apellido', 'nombre', 'dni', 'telefonoContacto'],
   },
   {
     key: 'devices',
@@ -287,7 +219,6 @@ export const RESOURCES: ResourceDef[] = [
     label: 'Dispositivos',
     singular: 'dispositivo',
     group: 'Operación',
-    index: '06',
     icon: 'activity',
     description: 'Dispositivos mobile vinculados a los prestadores.',
     columns: [
@@ -337,107 +268,20 @@ export const RESOURCES: ResourceDef[] = [
     searchKeys: ['deviceId', 'modelo', 'plataforma', 'estado'],
   },
   {
-    key: 'services',
-    path: '/coordination/services',
-    label: 'Servicios',
-    singular: 'servicio',
-    group: 'Operación',
-    index: '07',
-    icon: 'briefcase',
-    description: 'Prestaciones de cuidado a cubrir en un domicilio.',
-    columns: [
-      { key: 'fecha', label: 'Fecha', kind: 'mono' },
-      { key: 'ciudad', label: 'Ciudad' },
-      { key: 'provincia', label: 'Provincia' },
-      { key: 'estado', label: 'Estado', kind: 'chip' },
-    ],
-    fields: [
-      {
-        name: 'patientId',
-        label: 'Persona a cuidar',
-        type: 'uuid',
-        required: true,
-      },
-      {
-        name: 'addressId',
-        label: 'Domicilio',
-        type: 'uuid',
-        required: true,
-      },
-      { name: 'fecha', label: 'Fecha', type: 'date', required: true },
-      {
-        name: 'startTime',
-        label: 'Inicio',
-        type: 'datetime',
-        required: true,
-      },
-      { name: 'endTime', label: 'Fin', type: 'datetime', required: true },
-    ],
-    searchKeys: ['ciudad', 'provincia', 'estado', 'fecha'],
-  },
-  {
-    key: 'assignments',
-    path: '/coordination/assignments',
-    label: 'Asignaciones',
-    singular: 'asignación',
-    group: 'Operación',
-    index: '08',
-    icon: 'list',
-    description: 'Vínculo operativo entre un prestador y un servicio.',
-    columns: [
-      { key: 'id', label: 'ID', kind: 'mono' },
-      { key: 'city', label: 'Ciudad' },
-      { key: 'status', label: 'Estado', kind: 'chip' },
-      { key: 'riskLevel', label: 'Riesgo', kind: 'chip' },
-      { key: 'replacementRequired', label: 'Reemplazo', kind: 'bool' },
-    ],
-    fields: [
-      {
-        name: 'serviceId',
-        label: 'Servicio',
-        type: 'uuid',
-        required: true,
-        createOnly: true,
-      },
-      { name: 'providerId', label: 'Prestador', type: 'uuid', required: true },
-      {
-        name: 'status',
-        label: 'Estado',
-        type: 'select',
-        options: AssignmentStatus,
-        editOnly: true,
-      },
-      {
-        name: 'riskLevel',
-        label: 'Nivel de riesgo',
-        type: 'select',
-        options: RiskLevel,
-        editOnly: true,
-      },
-      {
-        name: 'replacementRequired',
-        label: 'Requiere reemplazo',
-        type: 'boolean',
-        editOnly: true,
-      },
-    ],
-    searchKeys: ['city', 'province', 'status', 'riskLevel'],
-  },
-  {
     key: 'attendance-events',
     path: '/coordination/attendance-events',
     label: 'Eventos de asistencia',
     singular: 'evento de asistencia',
     group: 'Campo',
-    index: '09',
     icon: 'check',
     readonly: true,
+    hideFromNav: true,
     description: 'Confirmaciones de llegada y fin de servicio (LLEGUÉ).',
     columns: [
       { key: 'type', label: 'Tipo', kind: 'chip' },
-      { key: 'idempotencyKey', label: 'Clave', kind: 'mono' },
       { key: 'insideAllowedRadius', label: 'En radio', kind: 'bool' },
-      { key: 'timestampServer', label: 'Servidor', kind: 'datetime' },
+      { key: 'distanceToAddress', label: 'Distancia al domicilio (m)' },
+      { key: 'timestampServer', label: 'Registrado', kind: 'datetime' },
     ],
     fields: [
       {
@@ -490,15 +334,15 @@ export const RESOURCES: ResourceDef[] = [
     label: 'Eventos de ubicación',
     singular: 'evento de ubicación',
     group: 'Campo',
-    index: '10',
     icon: 'pin',
     readonly: true,
+    hideFromNav: true,
     description: 'Puntos de tracking previos al inicio del servicio.',
     columns: [
-      { key: 'idempotencyKey', label: 'Clave', kind: 'mono' },
       { key: 'connectivityStatus', label: 'Conexión', kind: 'chip' },
+      { key: 'insideGeofence', label: 'En radio', kind: 'bool' },
       { key: 'batteryLevel', label: 'Batería', kind: 'mono' },
-      { key: 'timestampServer', label: 'Servidor', kind: 'datetime' },
+      { key: 'timestampServer', label: 'Registrado', kind: 'datetime' },
     ],
     fields: [
       {
@@ -533,6 +377,13 @@ export const RESOURCES: ResourceDef[] = [
         type: 'select',
         options: ConnectivityStatus,
       },
+      { name: 'insideGeofence', label: 'Dentro del radio', type: 'boolean' },
+      { name: 'suspicious', label: 'Latido sospechoso', type: 'boolean' },
+      {
+        name: 'suspiciousReason',
+        label: 'Motivo de sospecha',
+        type: 'text',
+      },
       { name: 'origin', label: 'Origen', type: 'text' },
       { name: 'timestampLocal', label: 'Hora local', type: 'datetime' },
       { name: 'timestampServer', label: 'Hora servidor', type: 'datetime' },
@@ -543,10 +394,10 @@ export const RESOURCES: ResourceDef[] = [
   {
     key: 'alerts',
     path: '/coordination/alerts',
+    route: '/alertas',
     label: 'Alertas operativas',
     singular: 'alerta',
     group: 'Coordinación',
-    index: '11',
     icon: 'alert',
     description: 'Alertas activas generadas por el motor de riesgo.',
     columns: [
@@ -588,10 +439,10 @@ export const RESOURCES: ResourceDef[] = [
   {
     key: 'actions',
     path: '/coordination/actions',
+    route: '/acciones',
     label: 'Acciones de coordinación',
     singular: 'acción',
     group: 'Coordinación',
-    index: '12',
     icon: 'activity',
     description: 'Registro de acciones tomadas sobre los servicios.',
     columns: [
@@ -629,7 +480,6 @@ export const RESOURCES: ResourceDef[] = [
     label: 'Notificaciones',
     singular: 'notificación',
     group: 'Coordinación',
-    index: '13',
     icon: 'bell',
     readonly: true,
     description: 'Registro de notificaciones push enviadas o simuladas.',
@@ -658,12 +508,44 @@ export const RESOURCES: ResourceDef[] = [
     immutableNote: IMMUTABLE,
   },
   {
+    // Cuentas con acceso al backoffice: administración de accesos, no personas
+    // del dominio. Vive en Sistema (sección administrativa al final del menú),
+    // separada de Prestadores y Personas a cuidar.
+    key: 'users',
+    path: '/coordination/users',
+    label: 'Usuarios del panel',
+    singular: 'usuario',
+    group: 'Sistema',
+    icon: 'users',
+    description: 'Cuentas de coordinación con acceso al backoffice.',
+    columns: [
+      { key: 'nombre', label: 'Nombre', kind: 'strong' },
+      { key: 'email', label: 'Email', kind: 'mono' },
+      { key: 'rol', label: 'Rol', kind: 'chip' },
+      { key: 'estado', label: 'Estado', kind: 'chip' },
+      { key: 'createdAt', label: 'Alta', kind: 'datetime' },
+    ],
+    fields: [
+      { name: 'nombre', label: 'Nombre', type: 'text', required: true },
+      { name: 'email', label: 'Email', type: 'email', required: true },
+      {
+        name: 'password',
+        label: 'Contraseña',
+        type: 'password',
+        required: true,
+        hint: 'Mínimo 6 caracteres. Al editar, dejar vacío para no cambiarla.',
+      },
+      { name: 'rol', label: 'Rol', type: 'select', options: UserRole },
+      { name: 'estado', label: 'Estado', type: 'select', options: UserStatus },
+    ],
+    searchKeys: ['nombre', 'email', 'rol'],
+  },
+  {
     key: 'app-config',
     path: '/coordination/app-config',
     label: 'Parámetros',
     singular: 'parámetro',
     group: 'Sistema',
-    index: '14',
     icon: 'settings',
     description: 'Parámetros operativos ajustables sin desplegar código.',
     columns: [
@@ -696,7 +578,6 @@ export const RESOURCES: ResourceDef[] = [
     label: 'Auditoría',
     singular: 'registro de auditoría',
     group: 'Sistema',
-    index: '15',
     icon: 'lock',
     readonly: true,
     description: 'Traza de cambios operativos y de sistema.',
@@ -720,15 +601,117 @@ export const RESOURCES: ResourceDef[] = [
   },
 ];
 
-/** Recurso por clave de ruta. */
+/**
+ * Recursos resolubles por relación que NO se exponen como sección del panel.
+ * `assignments` (servicio asignado) dejó de ser un CRUD del menú: su gestión
+ * vive dentro del flujo de Servicios. Pero varios eventos y registros lo
+ * referencian por id (ver `lib/refs.ts`), así que su definición sigue
+ * disponible para los selectores de relación. La ruta `/r/assignments` se
+ * redirige a la vista de servicios del día.
+ */
+const LOOKUP_RESOURCES: ResourceDef[] = [
+  {
+    // Los domicilios se gestionan como subtabla dentro de la persona a cuidar
+    // (no como sección del menú). La definición sigue acá para que el selector
+    // de "Domicilio" del alta de Servicios resuelva su path y etiqueta.
+    key: 'patient-addresses',
+    path: '/coordination/patient-addresses',
+    label: 'Domicilios',
+    singular: 'domicilio',
+    group: 'Personas',
+    icon: 'pin',
+    description: 'Domicilios donde se prestan los servicios.',
+    columns: [
+      { key: 'calle', label: 'Calle', kind: 'strong' },
+      { key: 'ciudad', label: 'Ciudad' },
+      { key: 'provincia', label: 'Provincia' },
+      { key: 'allowedRadiusM', label: 'Radio (m)', kind: 'mono' },
+    ],
+    fields: [],
+    searchKeys: ['calle', 'ciudad', 'provincia'],
+  },
+  {
+    key: 'assignments',
+    path: '/coordination/assignments',
+    label: 'Servicios asignados',
+    singular: 'servicio asignado',
+    group: 'Operación',
+    icon: 'list',
+    description: 'Vínculo operativo entre un prestador y un servicio.',
+    columns: [
+      { key: 'startTime', label: 'Inicio', kind: 'datetime' },
+      { key: 'provider.apellido', label: 'Prestador', kind: 'strong' },
+      { key: 'city', label: 'Ciudad' },
+      { key: 'status', label: 'Estado', kind: 'chip' },
+    ],
+    fields: [],
+    searchKeys: ['city', 'province', 'status', 'riskLevel'],
+  },
+  {
+    // Servicios vive en su propia pantalla (`/servicios`), no como CRUD del
+    // menú genérico. Su definición sigue acá para el modal de alta/edición y
+    // para los selectores de relación que lo apuntan (ver `lib/refs.ts`).
+    key: 'services',
+    path: '/coordination/services',
+    label: 'Servicios',
+    singular: 'servicio',
+    group: 'Operación',
+    icon: 'briefcase',
+    description: 'Prestaciones de cuidado a cubrir en un domicilio.',
+    columns: [
+      { key: 'fecha', label: 'Fecha', kind: 'mono' },
+      { key: 'ciudad', label: 'Ciudad' },
+      { key: 'provincia', label: 'Provincia' },
+      { key: 'estado', label: 'Estado', kind: 'chip' },
+    ],
+    fields: [
+      {
+        name: 'patientId',
+        label: 'Persona a cuidar',
+        type: 'uuid',
+        required: true,
+      },
+      {
+        name: 'addressId',
+        label: 'Domicilio',
+        type: 'uuid',
+        required: true,
+      },
+      { name: 'fecha', label: 'Fecha', type: 'date', required: true },
+      {
+        name: 'startTime',
+        label: 'Inicio',
+        type: 'datetime',
+        required: true,
+      },
+      { name: 'endTime', label: 'Fin', type: 'datetime', required: true },
+      {
+        name: 'providerId',
+        label: 'Prestador asignado',
+        type: 'select',
+        createOnly: true,
+        assignmentCompanion: true,
+        wide: true,
+        hint: 'Opcional. Si elegís un prestador, al guardar se crea la asignación operativa (persona, domicilio y horario se copian del servicio). También podés asignarlo después desde la ficha.',
+      },
+    ],
+    searchKeys: ['ciudad', 'provincia', 'estado', 'fecha'],
+  },
+];
+
+/** Recurso por clave: primero las secciones del panel, luego los de lookup. */
 export function resourceByKey(key: string | undefined): ResourceDef | undefined {
-  return RESOURCES.find((r) => r.key === key);
+  return (
+    RESOURCES.find((r) => r.key === key) ??
+    LOOKUP_RESOURCES.find((r) => r.key === key)
+  );
 }
 
 /** Recursos agrupados por su sección de sidebar, preservando el orden. */
 export function groupedResources(): { group: string; items: ResourceDef[] }[] {
   const groups: { group: string; items: ResourceDef[] }[] = [];
   for (const resource of RESOURCES) {
+    if (resource.hideFromNav) continue;
     let bucket = groups.find((g) => g.group === resource.group);
     if (!bucket) {
       bucket = { group: resource.group, items: [] };

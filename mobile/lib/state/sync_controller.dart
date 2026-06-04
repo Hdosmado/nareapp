@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/api/api_exception.dart';
@@ -72,6 +73,11 @@ class SyncController extends Notifier<SyncState> {
         flush();
       }
     });
+    // Al abrir la app (lifecycle `resumed`) se envía de una sola vez el lote
+    // de latidos que se fueron acumulando mientras estuvo en segundo plano.
+    final observer = _ResumeFlusher(flush);
+    WidgetsBinding.instance.addObserver(observer);
+    ref.onDispose(() => WidgetsBinding.instance.removeObserver(observer));
     Future.microtask(_init);
     return const SyncState();
   }
@@ -118,6 +124,18 @@ class SyncController extends Notifier<SyncState> {
       );
       rethrow;
     }
+  }
+
+  /// Acumula un evento en la cola **sin** intentar entregarlo en el momento.
+  ///
+  /// Pensado para los latidos de la ventana de tracking: en vez de pegarle al
+  /// backend por cada punto, se van juntando y se mandan en un solo lote
+  /// (`/sync/events`) cuando la app vuelve a primer plano o al recuperar red.
+  /// Reduce despertares de red y batería; el endpoint es idempotente, así que
+  /// reenviar lo ya aceptado no duplica nada.
+  Future<void> enqueueDeferred(OfflineEvent event) async {
+    await ref.read(offlineStoreProvider).add(event);
+    state = state.copyWith(pendingCount: state.pendingCount + 1);
   }
 
   Future<void> _deliverDirect(OfflineEvent event) {
@@ -167,6 +185,23 @@ class SyncController extends Notifier<SyncState> {
         isOnline: !e.isNetworkError && state.isOnline,
         lastError: e.message,
       );
+    }
+  }
+}
+
+/// Observa el ciclo de vida de la app y dispara el envío del lote acumulado
+/// cuando el prestador la abre (`AppLifecycleState.resumed`). Se mantiene
+/// liviano: la decisión de si hay algo para enviar y si hay red la toma
+/// `flush()`, que es idempotente y seguro de llamar de más.
+class _ResumeFlusher extends WidgetsBindingObserver {
+  _ResumeFlusher(this._onResume);
+
+  final Future<void> Function() _onResume;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _onResume();
     }
   }
 }

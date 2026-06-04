@@ -6,10 +6,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 import { UserRole } from '../../common/enums';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import { AlertsService } from './alerts.service';
@@ -30,6 +32,12 @@ export class AlertsController {
   @Get()
   list() {
     return this.alerts.listActive();
+  }
+
+  // Ruta estática: declarada antes de `:id` para que no la capture el param.
+  @Get('history')
+  history(@Query() pagination: PaginationDto) {
+    return this.alerts.listHistory(pagination);
   }
 
   @Post(':id/resolve')
