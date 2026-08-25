@@ -1,43 +1,34 @@
-# NareApp — Plataforma de Control Operativo de Cuidado Domiciliario
+**NareApp — Plataforma de Control Operativo de Cuidado Domiciliario**
 
-Herramienta operativa para la gestión y control de **servicios domiciliarios de
-cuidado, asistencia y supervisión**. El foco del producto es la **puntualidad**,
-la **cobertura efectiva de servicios** y la **prevención de ausencias y
-tardanzas**, reduciendo la carga manual del área de coordinación.
+Herramienta operativa para la gestión y el control de servicios domiciliarios de cuidado, asistencia y supervisión. Su objetivo principal es garantizar la puntualidad, la cobertura efectiva y la prevención de ausencias y retrasos, reduciendo la carga manual del equipo de coordinación. Queda fuera del alcance la liquidación de haberes y la facturación.
 
-> No es una herramienta de liquidación ni facturación.
+**Componentes**
 
-## Componentes
+| Carpeta   | Componente                              | Estado       |
+|-----------|-----------------------------------------|--------------|
+| backend/  | API REST + WebSocket (NestJS)           | En desarrollo|
+| mobile/   | App para prestadores (Flutter)          | Pendiente    |
+| panel/    | Panel web de coordinación (React + Vite)| Pendiente    |
+| docs/     | Documentación de arquitectura y diseño  | En desarrollo|
 
-| Carpeta    | Componente                                   | Estado            |
-|------------|----------------------------------------------|-------------------|
-| `backend/` | API REST + WebSocket (NestJS)                | 🟡 En desarrollo  |
-| `mobile/`  | App para prestadores (Flutter)               | ⚪ Pendiente      |
-| `panel/`   | Panel web de coordinación (React + Vite)     | ⚪ Pendiente      |
-| `docs/`    | Documentación de arquitectura y diseño       | 🟡 En desarrollo  |
+El desarrollo se realiza con un enfoque backend-first: primero se define la API y, sobre ese contrato, se construyen la aplicación móvil y el panel web.
 
-El proyecto se construye **backend primero**: la API define el contrato sobre el
-que luego se montan la app mobile y el panel web.
+**Stack tecnológico**
 
-## Stack tecnológico
+| Componente       | Tecnología                 |
+|------------------|----------------------------|
+| Backend / API    | NestJS (Node + TypeScript) |
+| Base de datos    | PostgreSQL + PostGIS       |
+| ORM              | TypeORM                    |
+| Aplicación móvil | Flutter                    |
+| Panel web        | React + Vite + TypeScript  |
+| Notificaciones   | Firebase Cloud Messaging   |
+| Mapas            | Google Maps Platform       |
 
-| Componente      | Tecnología                        |
-|-----------------|-----------------------------------|
-| Backend / API   | NestJS (Node + TypeScript)        |
-| Base de datos   | PostgreSQL + PostGIS              |
-| ORM             | TypeORM                           |
-| App mobile      | Flutter                           |
-| Panel web       | React + Vite + TypeScript         |
-| Push            | Firebase Cloud Messaging          |
-| Mapas           | Google Maps Platform              |
+**Documentación**
 
-## Arranque rápido
+La documentación del backend (instalación, configuración y uso) se encuentra en `backend/README.md`.
 
-El backend se documenta en [`backend/README.md`](backend/README.md).
+**Nomenclatura del dominio**
 
-## Nomenclatura del dominio
-
-El dominio usa terminología operativa/legal coherente: **prestador**,
-**prestación de servicio**, **servicio asignado**, **coordinación**,
-**cobertura**, **ausencia**, **tardanza**, **reemplazo**. No se utiliza
-terminología de relación de dependencia (empleada/trabajadora).
+Se utiliza terminología operativa y legal específica: prestador, prestación de servicios, servicio asignado, coordinación, cobertura, ausencia, retraso, reemplazo. No se emplean términos propios de una relación de dependencia (empleado/a, trabajador/a).
